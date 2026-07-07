@@ -5,7 +5,6 @@ compatibility: opencode
 metadata:
   domain: shell-data-wrangling
   platform: cross-platform
-  audience: software-engineer
 ---
 
 # CLI Data-Wrangling Toolkit
