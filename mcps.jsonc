@@ -56,7 +56,7 @@
       "url": "https://developerknowledge.googleapis.com/mcp",
       "headers": { "X-Goog-Api-Key": "{env:GOOGLE_DEVELOPER_API_KEY}" },
     },
-    "docs-rs": { "type": "local", "command": ["bunx", "@nuskey8/docs-rs-mcp@latest", "-y"] },
+    "docs.rs": { "type": "local", "command": ["bunx", "@nuskey8/docs-rs-mcp@latest", "-y"] },
     "fetch": { "type": "local", "command": ["uvx", "mcp-server-fetch"] },
     "exa": {
       "type": "remote",
@@ -94,9 +94,9 @@
     },
     "huggingface": { "type": "remote", "url": "https://huggingface.co/mcp", "headers": { "Authorization": "Bearer {env:HF_TOKEN}" } },
     "sequential-thinking": { "type": "local", "command": ["bunx", "-y", "@modelcontextprotocol/server-sequential-thinking"] },
-    "rust-analyzer": { "type": "local", "command": ["rust-analyzer-mcp"] },
-    "cargo-mcp": { "type": "local", "command": ["cargo-mcp", "serve"] },
-    "cratesio-mcp": { "type": "local", "command": ["cratesio-mcp"] },
+    // "rust-analyzer": { "type": "local", "command": ["rust-analyzer-mcp"] },
+    // "cargo": { "type": "local", "command": ["cargo-mcp", "serve"] },
+    "crates.io": { "type": "local", "command": ["cratesio-mcp"] },
     "javadoc": { "type": "local", "command": ["bunx", "-y", "javadoc-mcp"] },
     "xcodebuild": { "type": "local", "command": ["bunx", "-y", "xcodebuildmcp@latest", "mcp"] },
     "ida.pro": {
