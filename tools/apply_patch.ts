@@ -1,98 +1,71 @@
 /**
- * OpenCode apply_patch Tool — Shell-Independent Unified Diff Applier
+ * OpenCode apply_patch Tool - GNU/BSD patch CLI wrapper.
  *
- * Parses unified diffs directly in code. Never passes patch text through
- * bash, fish, heredocs, or any shell-string interpolation. Applies file
- * changes via Bun's filesystem APIs with explicit path validation against
- * workspace traversal and symlink escapes.
- *
- * Supported formats:
- *   - Standard unified diff  (--- a/file +++ b/file, @@ hunks)
- *   - Git extended diff      (diff --git, new/deleted file mode)
- *   - OpenCode custom format (*** Begin/End Patch, *** Add/Delete/Update File:)
- *
- * Features:
- *   - Create, update, and delete file operations
- *   - Multi-file patches — all-or-nothing where possible
- *   - Path sanitisation: no ../ traversal, no absolute paths, symlink escape detection
- *   - Context-mismatch rejection with clear diagnostics
- *   - Unicode, quoting characters, $, backticks, backslashes preserved byte-for-byte
+ * This tool does not apply hunks in TypeScript. It validates patch header paths
+ * for workspace safety, dry-runs the patch with GNU patch or BSD patch, then
+ * applies the same patch through that CLI with stdin. Patch text is never passed
+ * through a shell, heredoc, or shell-string interpolation.
  */
 
 import { tool } from "@opencode-ai/plugin";
 import * as path from "path";
 import {
   existsSync,
-  realpathSync,
   mkdirSync,
-  statSync,
   readFileSync,
-  writeFileSync,
+  realpathSync,
+  statSync,
   unlinkSync,
-  lstatSync,
+  writeFileSync,
 } from "fs";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type PatchImplementation = "gnu" | "bsd";
 
-type DiffLine =
-  | { kind: "context"; text: string }
-  | { kind: "add"; text: string }
-  | { kind: "remove"; text: string }
-  | { kind: "no_newline"; text: string };
-
-interface DiffHunk {
-  oldStart: number;
-  oldLines: number;
-  newStart: number;
-  newLines: number;
-  lines: DiffLine[];
+interface PatchCli {
+  command: string;
+  implementation: PatchImplementation;
 }
 
-interface FilePatch {
-  operation: "create" | "update" | "delete";
-  filePath: string; // relative path from patch
-  oldPath?: string; // rename source (git extended)
-  hunks?: DiffHunk[];
-  newFileContent?: string[];
-  oldFileMode?: string;
-  newFileMode?: string;
-  // OpenCode custom format fields
-  rawAddLines?: string[];
+interface PatchRunResult {
+  command: string;
+  args: string[];
+  exitCode: number;
+  stdout: string;
+  stderr: string;
 }
 
-interface PatchResult {
-  path: string;
+interface PatchHeaderFile {
+  oldPath: string | null;
+  newPath: string | null;
+}
+
+interface ValidatedPatchFile {
+  displayPath: string;
   operation: "created" | "updated" | "deleted";
-  hunksApplied: number;
-  hunksFailed: number;
+  snapshotPaths: string[];
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+interface FileSnapshot {
+  exists: boolean;
+  content?: Buffer;
+  mode?: number;
+}
 
-const OPENCODE_MARKERS = {
-  BEGIN_PATCH: "*** Begin Patch",
-  END_PATCH: "*** End Patch",
-  ADD_FILE: "*** Add File:",
-  DELETE_FILE: "*** Delete File:",
-  UPDATE_FILE: "*** Update File:",
-  MOVE_TO: "*** Move to:",
-  END_OF_FILE: "*** End of File",
-} as const;
+interface ApplyCliResult {
+  results: ValidatedPatchFile[];
+  engine: string;
+  stripCount: number;
+}
 
-const BAD_PATH_CHARS = /[\x00-\x1f]/;
-const PATH_TRAVERSAL = /(?:^|\/)\.\.(?:$|\/)/;
+const CONTROL_CHARS = /[\x00-\x1f]/;
 const ABSOLUTE_PATH = /^\/|^[A-Za-z]:[\\/]/;
+const PATH_TRAVERSAL = /(?:^|[\\/])\.\.(?:$|[\\/])/;
+const PATCH_OUTPUT_LIMIT = 4000;
 
-// ─── Unified Diff Parser ──────────────────────────────────────────────────────
-
-class DiffParseError extends Error {
-  constructor(
-    message: string,
-    public line: number,
-    public detail?: string,
-  ) {
-    super(`line ${line}: ${message}${detail ? ` (${detail})` : ""}`);
-    this.name = "DiffParseError";
+class PatchInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PatchInputError";
   }
 }
 
@@ -103,414 +76,12 @@ class PathValidationError extends Error {
   }
 }
 
-class PatchApplyError extends Error {
-  constructor(
-    message: string,
-    public path: string,
-    public hunkIndex?: number,
-  ) {
+class PatchCliError extends Error {
+  constructor(message: string) {
     super(message);
-    this.name = "PatchApplyError";
+    this.name = "PatchCliError";
   }
 }
-
-/**
- * Split patch text into lines, normalising line endings.
- */
-function splitLines(text: string): string[] {
-  return text.replace(/\r\n?/g, "\n").split("\n");
-}
-
-/**
- * Try to detect whether a patch uses the OpenCode custom format.
- */
-function isOpencodeFormat(lines: string[]): boolean {
-  return lines.some((l) => l.startsWith(OPENCODE_MARKERS.BEGIN_PATCH));
-}
-
-/**
- * Strip a leading "a/" or "b/" prefix from a unified-diff path.
- * Also handles git's "c/" and "i/" prefixes.
- */
-function stripPrefix(p: string): string {
-  return p.replace(/^[abciw]\//, "");
-}
-
-/**
- * Parse a standard unified-diff header line.
- * Returns [filePath, oldPath] or null.
- * Handles:
- *   --- a/path       (remove prefix: path)
- *   --- /dev/null    (new file: null)
- *   +++ b/path       (target file)
- *   +++ /dev/null    (deleted file: null)
- */
-function parseHeaderLine(line: string, prefix: string): string | null {
-  const stripped = line.slice(prefix.length).trimStart();
-  if (stripped === "/dev/null") return null;
-  // Handle timestamps: "file\t2024-01-01 00:00:00 +0000"
-  const tabIdx = stripped.indexOf("\t");
-  return tabIdx >= 0
-    ? stripPrefix(stripped.slice(0, tabIdx))
-    : stripPrefix(stripped);
-}
-
-/**
- * Parse a unified-diff hunk header: @@ -oldStart,oldLines +newStart,newLines @@
- */
-function parseHunkHeader(line: string): DiffHunk | null {
-  const m = line.match(/^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@/);
-  if (!m) return null;
-  return {
-    oldStart: parseInt(m[1], 10),
-    oldLines: m[2] ? parseInt(m[2], 10) : 1,
-    newStart: parseInt(m[3], 10),
-    newLines: m[4] ? parseInt(m[4], 10) : 1,
-    lines: [],
-  };
-}
-
-/**
- * Parse a standard unified diff (or git diff) into FilePatch[].
- */
-function parseUnifiedDiff(lines: string[]): FilePatch[] {
-  const patches: FilePatch[] = [];
-  let i = 0;
-  let currentPatch: FilePatch | null = null;
-  let currentHunk: DiffHunk | null = null;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Skip blank lines between hunks
-    if (line === "" && !currentHunk) {
-      i++;
-      continue;
-    }
-
-    // Git extended header: diff --git a/path b/path
-    if (line.startsWith("diff --git ")) {
-      if (currentPatch) {
-        if (currentHunk) currentPatch.hunks!.push(currentHunk);
-        patches.push(currentPatch);
-        currentHunk = null;
-      }
-      currentPatch = null;
-
-      const m = line.match(/^diff --git a\/(.*?) b\/(.*?)$/);
-      if (m) {
-        currentPatch = {
-          operation: "update",
-          filePath: stripPrefix(m[2]),
-          oldPath: stripPrefix(m[1]),
-          hunks: [],
-        };
-      }
-      i++;
-      continue;
-    }
-
-    // Git index line (skip)
-    if (
-      /^(index|similarity index|rename (from|to)|copy (from|to)|old mode|new mode|deleted file mode|new file mode)/.test(
-        line,
-      )
-    ) {
-      if (currentPatch) {
-        if (line.startsWith("new file mode"))
-          currentPatch.newFileMode = line.slice("new file mode".length).trim();
-        if (line.startsWith("deleted file mode"))
-          currentPatch.oldFileMode = line
-            .slice("deleted file mode".length)
-            .trim();
-      }
-      i++;
-      continue;
-    }
-
-    // Header: --- a/file or --- /dev/null
-    if (line.startsWith("--- ")) {
-      const oldPath = parseHeaderLine(line, "--- ");
-
-      // If currentPatch exists from diff --git and this --- line matches or is /dev/null
-      if (currentPatch && currentPatch.oldPath !== undefined) {
-        if (oldPath === null) {
-          // /dev/null means new file — keep existing patch, mark as create
-          currentPatch.operation = "create";
-        } else if (currentPatch.oldPath === oldPath) {
-          // Same file — continue using this patch
-        } else {
-          // Different file — finalize old, start new
-          if (currentHunk) currentPatch.hunks!.push(currentHunk);
-          patches.push(currentPatch);
-          currentHunk = null;
-          currentPatch = {
-            operation: "update",
-            filePath: "",
-            oldPath: oldPath ?? undefined,
-            hunks: [],
-          };
-        }
-      } else {
-        if (currentPatch) {
-          if (currentHunk) currentPatch.hunks!.push(currentHunk);
-          patches.push(currentPatch);
-          currentHunk = null;
-        }
-        currentPatch = {
-          operation: oldPath === null ? "create" : "update",
-          filePath: "",
-          oldPath: oldPath ?? undefined,
-          hunks: [],
-        };
-      }
-      i++;
-      continue;
-    }
-
-    // Header: +++ b/file or +++ /dev/null
-    if (line.startsWith("+++ ")) {
-      if (!currentPatch) {
-        currentPatch = { operation: "update", filePath: "", hunks: [] };
-      }
-      const newPath = parseHeaderLine(line, "+++ ");
-      if (newPath === null) {
-        currentPatch.operation = "delete";
-        currentPatch.filePath = currentPatch.oldPath ?? "";
-      } else {
-        currentPatch.filePath = newPath;
-      }
-      i++;
-      continue;
-    }
-
-    // Hunk header: @@ -oldStart,oldLines +newStart,newLines @@
-    const hunk = parseHunkHeader(line);
-    if (hunk) {
-      if (!currentPatch) {
-        throw new DiffParseError("Hunk without file header", i + 1);
-      }
-      if (currentHunk) {
-        currentPatch.hunks!.push(currentHunk);
-      }
-      currentHunk = hunk;
-      i++;
-      continue;
-    }
-
-    // Hunk content lines
-    if (currentHunk) {
-      if (line.startsWith("+")) {
-        currentHunk.lines.push({ kind: "add", text: line.slice(1) });
-      } else if (line.startsWith("-")) {
-        currentHunk.lines.push({ kind: "remove", text: line.slice(1) });
-      } else if (line.startsWith(" ")) {
-        currentHunk.lines.push({ kind: "context", text: line.slice(1) });
-      } else if (line === "\\ No newline at end of file") {
-        currentHunk.lines.push({ kind: "no_newline", text: "" });
-      } else if (line === "") {
-        // Skip blank lines that may appear between hunks or at end
-      } else {
-        currentHunk.lines.push({ kind: "context", text: line });
-      }
-      i++;
-      continue;
-    }
-
-    // Line didn't match anything — skip
-    i++;
-  }
-
-  // Finalize
-  if (currentPatch) {
-    if (currentHunk) currentPatch.hunks!.push(currentHunk);
-    patches.push(currentPatch);
-  }
-
-  return patches;
-}
-
-/**
- * Parse the OpenCode custom format:
- *   *** Begin Patch
- *   *** Add File: path
- *   +content
- *   ...
- *   *** Delete File: path
- *   *** Update File: path
- *   *** Move to: new_path
- *   @@
- *   -old
- *   +new
- *   *** End of File
- *   *** End Patch
- */
-function parseOpencodeFormat(lines: string[]): FilePatch[] {
-  const patches: FilePatch[] = [];
-  let i = 0;
-  let currentPatch: FilePatch | null = null;
-  let currentHunk: DiffHunk | null = null;
-  let collectingAddLines = false;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    if (
-      trimmed === OPENCODE_MARKERS.BEGIN_PATCH ||
-      trimmed.startsWith("*** Begin Patch")
-    ) {
-      i++;
-      continue;
-    }
-
-    if (
-      trimmed === OPENCODE_MARKERS.END_PATCH ||
-      trimmed.startsWith("*** End Patch")
-    ) {
-      break;
-    }
-
-    // File operation headers
-    if (trimmed.startsWith(OPENCODE_MARKERS.ADD_FILE)) {
-      if (currentPatch) {
-        if (currentHunk) currentPatch.hunks!.push(currentHunk);
-        patches.push(currentPatch);
-        currentHunk = null;
-      }
-      const filePath = trimmed.slice(OPENCODE_MARKERS.ADD_FILE.length).trim();
-      currentPatch = {
-        operation: "create",
-        filePath,
-        rawAddLines: [],
-        hunks: [],
-      };
-      collectingAddLines = true;
-      i++;
-      continue;
-    }
-
-    if (trimmed.startsWith(OPENCODE_MARKERS.DELETE_FILE)) {
-      if (currentPatch) {
-        if (currentHunk) currentPatch.hunks!.push(currentHunk);
-        patches.push(currentPatch);
-        currentHunk = null;
-      }
-      const filePath = trimmed
-        .slice(OPENCODE_MARKERS.DELETE_FILE.length)
-        .trim();
-      currentPatch = { operation: "delete", filePath, hunks: [] };
-      collectingAddLines = false;
-      i++;
-      continue;
-    }
-
-    if (trimmed.startsWith(OPENCODE_MARKERS.UPDATE_FILE)) {
-      if (currentPatch) {
-        if (currentHunk) currentPatch.hunks!.push(currentHunk);
-        patches.push(currentPatch);
-        currentHunk = null;
-      }
-      const filePath = trimmed
-        .slice(OPENCODE_MARKERS.UPDATE_FILE.length)
-        .trim();
-      currentPatch = { operation: "update", filePath, hunks: [] };
-      collectingAddLines = false;
-      i++;
-      continue;
-    }
-
-    if (trimmed.startsWith(OPENCODE_MARKERS.MOVE_TO)) {
-      if (currentPatch) {
-        const newPath = trimmed.slice(OPENCODE_MARKERS.MOVE_TO.length).trim();
-        currentPatch.oldPath = currentPatch.filePath;
-        currentPatch.filePath = newPath;
-      }
-      i++;
-      continue;
-    }
-
-    if (
-      trimmed === OPENCODE_MARKERS.END_OF_FILE ||
-      trimmed.startsWith("*** End of File")
-    ) {
-      if (currentPatch) {
-        if (currentHunk) currentPatch.hunks!.push(currentHunk);
-        patches.push(currentPatch);
-        currentPatch = null;
-        currentHunk = null;
-      }
-      collectingAddLines = false;
-      i++;
-      continue;
-    }
-
-    // Collect lines for Add File
-    if (collectingAddLines && currentPatch && line.startsWith("+")) {
-      currentPatch.rawAddLines!.push(line.slice(1));
-      i++;
-      continue;
-    }
-
-    // Hunk header (@@ line)
-    const hunk = parseHunkHeader(line);
-    if (hunk) {
-      if (currentHunk && currentPatch) {
-        currentPatch.hunks!.push(currentHunk);
-      }
-      currentHunk = hunk;
-      collectingAddLines = false;
-      i++;
-      continue;
-    }
-
-    // Hunk content lines
-    if (currentHunk && currentPatch) {
-      if (line.startsWith("+"))
-        currentHunk.lines.push({ kind: "add", text: line.slice(1) });
-      else if (line.startsWith("-"))
-        currentHunk.lines.push({ kind: "remove", text: line.slice(1) });
-      else if (line.startsWith(" "))
-        currentHunk.lines.push({ kind: "context", text: line.slice(1) });
-      else if (line === "\\ No newline at end of file")
-        currentHunk.lines.push({ kind: "no_newline", text: "" });
-      else currentHunk.lines.push({ kind: "context", text: line });
-      i++;
-      continue;
-    }
-
-    i++;
-  }
-
-  // Finalize
-  if (currentPatch) {
-    if (currentHunk) currentPatch.hunks!.push(currentHunk);
-    patches.push(currentPatch);
-  }
-
-  return patches;
-}
-
-function parsePatch(input: string): FilePatch[] {
-  const lines = splitLines(input);
-  if (lines.length === 0) {
-    throw new DiffParseError("Empty patch text", 0);
-  }
-
-  if (isOpencodeFormat(lines)) {
-    return parseOpencodeFormat(lines);
-  }
-
-  try {
-    return parseUnifiedDiff(lines);
-  } catch (e) {
-    if (e instanceof DiffParseError) throw e;
-    // Fallback: try OpenCode format even without explicit markers
-    return parseOpencodeFormat(lines);
-  }
-}
-
-// ─── Path Validation ──────────────────────────────────────────────────────────
 
 function resolveWorktree(context: {
   worktree: string;
@@ -523,497 +94,489 @@ function resolveWorktree(context: {
   return process.cwd();
 }
 
-function validatePath(filePath: string, worktree: string): string {
-  // Reject empty paths
+function isDevNull(rawPath: string): boolean {
+  return (
+    rawPath === "/dev/null" ||
+    rawPath.startsWith("/dev/null\t") ||
+    rawPath.startsWith("/dev/null ")
+  );
+}
+
+function validatePatchPathSyntax(filePath: string, label: string): void {
   if (!filePath || filePath.trim() === "") {
-    throw new PathValidationError("Empty file path in patch");
+    throw new PathValidationError(`${label} is empty`);
+  }
+  if (CONTROL_CHARS.test(filePath)) {
+    throw new PathValidationError(
+      `${label} contains control characters: ${filePath}`,
+    );
+  }
+  if (filePath.startsWith('"') || filePath.startsWith("'")) {
+    throw new PathValidationError(
+      `${label} uses quoted filenames, which are not portable across GNU and BSD patch: ${filePath}`,
+    );
+  }
+  if (ABSOLUTE_PATH.test(filePath)) {
+    throw new PathValidationError(`${label} is absolute: ${filePath}`);
+  }
+  if (PATH_TRAVERSAL.test(filePath)) {
+    throw new PathValidationError(
+      `${label} contains path traversal: ${filePath}`,
+    );
+  }
+}
+
+function parseHeaderPath(line: string, prefix: "--- " | "+++ "): string | null {
+  const rawPath = line.slice(prefix.length);
+  if (isDevNull(rawPath)) return null;
+
+  const tabIndex = rawPath.indexOf("\t");
+  const pathPart =
+    tabIndex >= 0
+      ? rawPath.slice(0, tabIndex)
+      : (rawPath.match(/^\S+/)?.[0] ?? "");
+
+  validatePatchPathSyntax(pathPart, `patch header path on ${prefix.trim()}`);
+  return pathPart;
+}
+
+function extractPatchFiles(patchText: string): PatchHeaderFile[] {
+  const lines = patchText.replace(/\r\n?/g, "\n").split("\n");
+  const files: PatchHeaderFile[] = [];
+
+  for (let i = 0; i < lines.length - 1; i++) {
+    const oldHeader = lines[i];
+    const newHeader = lines[i + 1];
+    if (!oldHeader.startsWith("--- ") || !newHeader.startsWith("+++ "))
+      continue;
+
+    const oldPath = parseHeaderPath(oldHeader, "--- ");
+    const newPath = parseHeaderPath(newHeader, "+++ ");
+    if (oldPath === null && newPath === null) {
+      throw new PatchInputError(
+        "Patch file header cannot use /dev/null for both old and new paths",
+      );
+    }
+    files.push({ oldPath, newPath });
+    i++;
   }
 
-  // Reject paths with control characters
-  if (BAD_PATH_CHARS.test(filePath)) {
-    throw new PathValidationError(
-      `Path contains control characters: ${filePath}`,
+  if (files.length === 0) {
+    throw new PatchInputError(
+      "No unified-diff file headers found. This CLI-only tool expects standard ---/+++ patch headers.",
     );
   }
 
-  // Reject absolute paths
-  if (ABSOLUTE_PATH.test(filePath)) {
-    throw new PathValidationError(`Absolute paths not allowed: ${filePath}`);
+  return files;
+}
+
+function looksLikeGitPrefixedDiff(files: PatchHeaderFile[]): boolean {
+  return files.some((file) => {
+    if (file.oldPath === null) return file.newPath?.startsWith("b/") ?? false;
+    if (file.newPath === null) return file.oldPath.startsWith("a/");
+    return file.oldPath.startsWith("a/") && file.newPath.startsWith("b/");
+  });
+}
+
+function preferredStripCounts(files: PatchHeaderFile[]): number[] {
+  return looksLikeGitPrefixedDiff(files) ? [1, 0] : [0, 1];
+}
+
+function stripPathComponents(filePath: string, stripCount: number): string {
+  const parts = filePath.replace(/\\/g, "/").split("/");
+  if (parts.length <= stripCount) {
+    throw new PathValidationError(
+      `-p${stripCount} removes entire path: ${filePath}`,
+    );
   }
+  return parts.slice(stripCount).join("/");
+}
 
-  // Reject path traversal (../)
-  if (PATH_TRAVERSAL.test(filePath)) {
-    throw new PathValidationError(`Path traversal not allowed: ${filePath}`);
-  }
+function validateWorkspacePath(filePath: string, worktree: string): string {
+  validatePatchPathSyntax(filePath, "resolved patch path");
 
-  const resolved = path.resolve(worktree, filePath);
-
-  const normalizedWorktree = path.join(path.resolve(worktree), path.sep);
+  const worktreeReal = realpathSync(worktree);
+  const resolved = path.resolve(worktreeReal, filePath);
+  const normalizedWorktree = path.join(worktreeReal, path.sep);
   const normalizedResolved = path.join(path.resolve(resolved), path.sep);
   if (!normalizedResolved.startsWith(normalizedWorktree)) {
     throw new PathValidationError(
-      `Path escapes workspace: ${filePath} resolves to ${resolved} which is outside ${worktree}`,
+      `Path escapes workspace: ${filePath} resolves to ${resolved}`,
     );
   }
 
-  // Check for symlink escapes by resolving the directory components
-  let checkPath = worktree;
+  let current = worktreeReal;
   const segments = filePath
-    .split(path.sep)
-    .filter((s) => s !== "" && s !== ".");
+    .split(/[\\/]+/)
+    .filter((segment) => segment && segment !== ".");
   for (const segment of segments) {
-    checkPath = path.join(checkPath, segment);
-    try {
-      if (existsSync(checkPath)) {
-        const realPath = realpathSync(checkPath);
-        const normalizedReal = path.join(path.resolve(realPath), path.sep);
-        if (!normalizedReal.startsWith(normalizedWorktree)) {
-          throw new PathValidationError(
-            `Symlink escapes workspace: ${filePath} → ${realPath} is outside ${worktree}`,
-          );
-        }
-      }
-    } catch (e) {
-      // File doesn't exist yet (for creates) — validate parent instead
-      if (e instanceof PathValidationError) throw e;
+    current = path.join(current, segment);
+    if (!existsSync(current)) continue;
+
+    const realPath = realpathSync(current);
+    const normalizedReal = path.join(path.resolve(realPath), path.sep);
+    if (!normalizedReal.startsWith(normalizedWorktree)) {
+      throw new PathValidationError(
+        `Symlink escapes workspace: ${filePath} resolves to ${realPath}`,
+      );
     }
   }
 
   return resolved;
 }
 
-/**
- * Validate ALL paths in a multi-file patch before applying anything.
- */
-function validateAllPaths(patches: FilePatch[], worktree: string): void {
-  const errors: string[] = [];
-  for (const p of patches) {
-    try {
-      validatePath(p.filePath, worktree);
-    } catch (e) {
-      if (e instanceof PathValidationError) {
-        errors.push(e.message);
-      } else {
-        throw e;
-      }
-    }
-  }
-  if (errors.length > 0) {
-    throw new PathValidationError(
-      `Path validation failed for ${errors.length} file(s):\n${errors.map((e) => `  - ${e}`).join("\n")}`,
+function validateFilesForStripCount(
+  files: PatchHeaderFile[],
+  stripCount: number,
+  worktree: string,
+): ValidatedPatchFile[] {
+  return files.map((file) => {
+    const oldPath =
+      file.oldPath === null
+        ? null
+        : stripPathComponents(file.oldPath, stripCount);
+    const newPath =
+      file.newPath === null
+        ? null
+        : stripPathComponents(file.newPath, stripCount);
+    const snapshotPaths = Array.from(
+      new Set([oldPath, newPath].filter(Boolean) as string[]),
     );
-  }
+
+    for (const snapshotPath of snapshotPaths) {
+      validateWorkspacePath(snapshotPath, worktree);
+    }
+
+    const operation =
+      oldPath === null ? "created" : newPath === null ? "deleted" : "updated";
+    const displayPath =
+      oldPath && newPath && oldPath !== newPath
+        ? `${oldPath} -> ${newPath}`
+        : (newPath ?? oldPath!);
+
+    return { displayPath, operation, snapshotPaths };
+  });
 }
 
-// ─── Patch Application ────────────────────────────────────────────────────────
-
-function applyHunksToContent(
-  original: string,
-  hunks: DiffHunk[],
-  filePath: string,
-): string {
-  const rawLines = original.split("\n");
-  // Strip trailing empty string artifact from split on newline-terminated files
-  const origLines =
-    rawLines.length > 1 && rawLines[rawLines.length - 1] === ""
-      ? rawLines.slice(0, -1)
-      : rawLines;
-  const result: string[] = [];
-  let origIdx = 0;
-
-  for (let hi = 0; hi < hunks.length; hi++) {
-    const hunk = hunks[hi];
-    const targetOrigin = Math.max(0, hunk.oldStart - 1);
-
-    // Copy lines before this hunk's start (lines not covered by any hunk)
-    while (origIdx < targetOrigin && origIdx < origLines.length) {
-      result.push(origLines[origIdx]);
-      origIdx++;
-    }
-
-    // For create hunks (oldStart=0), just emit add lines and skip remaining
-    if (hunk.oldStart === 0) {
-      for (const line of hunk.lines) {
-        if (line.kind === "add") result.push(line.text);
-      }
-      origIdx = origLines.length;
-      continue;
-    }
-
-    if (origIdx > targetOrigin) {
-      while (result.length > targetOrigin) result.pop();
-      origIdx = targetOrigin;
-    }
-
-    // Verify context and build replacement
-    let contextOffset = 0;
-    let failedHunk = false;
-    for (const line of hunk.lines) {
-      if (line.kind === "context") {
-        if (origIdx + contextOffset >= origLines.length) {
-          failedHunk = true;
-          break;
-        }
-        const actual = origLines[origIdx + contextOffset];
-        if (actual !== line.text) {
-          let found = false;
-          for (
-            let a = 1;
-            a <= 5 && origIdx + contextOffset + a < origLines.length;
-            a++
-          ) {
-            if (origLines[origIdx + contextOffset + a] === line.text) {
-              origIdx += a;
-              contextOffset = 0;
-              found = true;
-              break;
-            }
-          }
-          if (!found) failedHunk = true;
-        }
-        contextOffset++;
-      } else if (line.kind === "remove") {
-        if (origIdx + contextOffset >= origLines.length) {
-          failedHunk = true;
-          break;
-        }
-        contextOffset++;
-      }
-      if (failedHunk) break;
-    }
-
-    if (failedHunk) {
-      // Fuzzy search for matching context
-      const firstCtx = hunk.lines.find((l) => l.kind === "context");
-      let found = false;
-      if (firstCtx) {
-        const searchStart = Math.max(0, targetOrigin - 100);
-        const searchEnd = Math.min(
-          origLines.length,
-          targetOrigin + hunk.oldLines + 100,
-        );
-        for (let si = searchStart; si <= searchEnd; si++) {
-          if (si < origLines.length && origLines[si] === firstCtx.text) {
-            origIdx = si;
-            found = true;
-            break;
-          }
-        }
-      }
-      if (!found) {
-        const snippet = hunk.lines
-          .filter((l) => l.kind === "context")
-          .slice(0, 3)
-          .map((l) => l.text)
-          .join("\n    ");
-        throw new PatchApplyError(
-          `Hunk #${hi + 1} failed at ${filePath}:${targetOrigin + 1}. ` +
-            `Expected context not found. Context:\n    ${snippet}`,
-          filePath,
-          hi,
-        );
-      }
-
-      // Re-process with new alignment
-      for (const line of hunk.lines) {
-        if (line.kind === "context") {
-          result.push(line.text);
-          origIdx++;
-        } else if (line.kind === "remove") {
-          origIdx++;
-        } else if (line.kind === "add") {
-          result.push(line.text);
-        }
-      }
-      contextOffset = 0;
-      continue;
-    }
-
-    // Apply hunk: emit context and add lines, skip remove lines
-    for (const line of hunk.lines) {
-      if (line.kind === "context") {
-        result.push(line.text);
-        origIdx++;
-      } else if (line.kind === "remove") {
-        origIdx++;
-      } else if (line.kind === "add") {
-        result.push(line.text);
-      }
+function readPatchVersion(command: string): string | null {
+  for (const flag of ["--version", "-v"]) {
+    try {
+      const proc = Bun.spawnSync({
+        cmd: [command, flag],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const output =
+        `${proc.stdout.toString()}${proc.stderr.toString()}`.trim();
+      if (proc.exitCode === 0 || output.length > 0) return output;
+    } catch {
+      return null;
     }
   }
-
-  // Copy remaining lines after last hunk
-  while (origIdx < origLines.length) {
-    result.push(origLines[origIdx]);
-    origIdx++;
-  }
-
-  return result.join("\n");
+  return null;
 }
 
-function applyPatches(patches: FilePatch[], worktree: string): PatchResult[] {
-  // Phase 1: Validate all paths
-  validateAllPaths(patches, worktree);
+function detectPatchCli(): PatchCli | null {
+  const candidates = [
+    process.env.OPENCODE_PATCH,
+    process.env.PATCH,
+    "patch",
+    "gpatch",
+  ].filter((candidate): candidate is string => Boolean(candidate));
+  const seen = new Set<string>();
 
-  // Phase 2: Read all target files and validate operations
-  const snapshots: Map<string, { exists: boolean; content: string }> =
-    new Map();
+  for (const command of candidates) {
+    if (seen.has(command)) continue;
+    seen.add(command);
 
-  for (const p of patches) {
-    const absPath = path.resolve(worktree, p.filePath);
-    const exists = existsSync(absPath);
-
-    if (p.operation === "create") {
-      if (exists && p.rawAddLines && p.rawAddLines.length > 0) {
-        throw new PatchApplyError(
-          `Cannot create file that already exists: ${p.filePath}`,
-          p.filePath,
-        );
-      }
-      const content = p.rawAddLines ? p.rawAddLines.join("\n") : "";
-      snapshots.set(absPath, { exists: false, content });
-    } else if (p.operation === "delete") {
-      if (!exists) {
-        throw new PatchApplyError(
-          `Cannot delete non-existent file: ${p.filePath}`,
-          p.filePath,
-        );
-      }
-      snapshots.set(absPath, { exists: true, content: "" });
-    } else if (p.operation === "update") {
-      if (!exists) {
-        throw new PatchApplyError(
-          `Cannot update non-existent file: ${p.filePath}`,
-          p.filePath,
-        );
-      }
-      const original = readFileSync(absPath, "utf-8");
-      snapshots.set(absPath, { exists: true, content: original });
-    }
+    const version = readPatchVersion(command);
+    if (version === null) continue;
+    return {
+      command,
+      implementation: /GNU patch/i.test(version) ? "gnu" : "bsd",
+    };
   }
 
-  // Phase 3: Compute new contents in memory (dry-run apply)
-  const pending: Map<string, { operation: string; content?: string }> =
-    new Map();
+  return null;
+}
 
-  for (const p of patches) {
-    const absPath = path.resolve(worktree, p.filePath);
+function rejectPathFor(worktree: string): string {
+  return path.join(
+    worktree,
+    `.opencode-patch-${Date.now()}-${Math.random().toString(36).slice(2)}.rej`,
+  );
+}
 
-    if (p.operation === "create") {
-      const content = snapshots.get(absPath)!.content;
-      pending.set(absPath, { operation: "create", content });
-    } else if (p.operation === "delete") {
-      pending.set(absPath, { operation: "delete" });
-    } else if (p.operation === "update") {
-      if (!p.hunks || p.hunks.length === 0) {
-        throw new PatchApplyError(
-          `Update patch for ${p.filePath} has no hunks`,
-          p.filePath,
-        );
-      }
-      const original = snapshots.get(absPath)!.content;
+function patchArgs(
+  cli: PatchCli,
+  stripCount: number,
+  rejectPath: string,
+  dryRun: boolean,
+): string[] {
+  const args = ["-p", String(stripCount), "-u", "-f", "-r", rejectPath];
+  if (!dryRun) return args;
+  return [...args, cli.implementation === "gnu" ? "--dry-run" : "-C"];
+}
 
-      try {
-        const newContent = applyHunksToContent(original, p.hunks, p.filePath);
-        pending.set(absPath, { operation: "update", content: newContent });
-      } catch (e) {
-        if (e instanceof PatchApplyError) throw e;
-        throw new PatchApplyError(
-          `Failed to apply hunks to ${p.filePath}: ${e}`,
-          p.filePath,
-        );
-      }
-    }
-  }
+async function runPatchCli(
+  cli: PatchCli,
+  args: string[],
+  patchText: string,
+  worktree: string,
+): Promise<PatchRunResult> {
+  const proc = Bun.spawn({
+    cmd: [cli.command, ...args],
+    cwd: worktree,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
 
-  // Phase 4: Commit all changes (all-or-nothing within limits)
-  const results: PatchResult[] = [];
-  const applied: Array<{
-    absPath: string;
-    operation: string;
-    content?: string;
-  }> = [];
+  const stdout = proc.stdout
+    ? new Response(proc.stdout).text()
+    : Promise.resolve("");
+  const stderr = proc.stderr
+    ? new Response(proc.stderr).text()
+    : Promise.resolve("");
 
   try {
-    for (const p of patches) {
-      const absPath = path.resolve(worktree, p.filePath);
-      const action = pending.get(absPath)!;
+    proc.stdin.write(patchText);
+    proc.stdin.end();
+  } catch {
+    // The process may exit before reading stdin on invalid arguments.
+  }
 
-      // Create parent directories if needed
+  const [exitCode, stdoutText, stderrText] = await Promise.all([
+    proc.exited,
+    stdout,
+    stderr,
+  ]);
+
+  return {
+    command: cli.command,
+    args,
+    exitCode,
+    stdout: stdoutText,
+    stderr: stderrText,
+  };
+}
+
+function cleanupRejectFile(rejectPath: string): void {
+  try {
+    if (existsSync(rejectPath)) unlinkSync(rejectPath);
+  } catch {
+    // Best effort cleanup.
+  }
+}
+
+function takeSnapshots(
+  files: ValidatedPatchFile[],
+  worktree: string,
+): Map<string, FileSnapshot> {
+  const snapshots = new Map<string, FileSnapshot>();
+  for (const file of files) {
+    for (const snapshotPath of file.snapshotPaths) {
+      const absPath = validateWorkspacePath(snapshotPath, worktree);
+      if (snapshots.has(absPath)) continue;
+
+      if (!existsSync(absPath)) {
+        snapshots.set(absPath, { exists: false });
+        continue;
+      }
+
+      const stat = statSync(absPath);
+      snapshots.set(absPath, {
+        exists: true,
+        content: readFileSync(absPath),
+        mode: stat.mode,
+      });
+    }
+  }
+  return snapshots;
+}
+
+function rollbackSnapshots(snapshots: Map<string, FileSnapshot>): void {
+  for (const [absPath, snapshot] of snapshots) {
+    try {
+      if (!snapshot.exists) {
+        if (existsSync(absPath)) unlinkSync(absPath);
+        continue;
+      }
+
       const dir = path.dirname(absPath);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      const content = snapshot.content ?? Buffer.alloc(0);
+      if (snapshot.mode === undefined) {
+        writeFileSync(absPath, content);
+      } else {
+        writeFileSync(absPath, content, { mode: snapshot.mode });
       }
-
-      let hunksApplied = 0;
-      let hunksFailed = 0;
-
-      if (action.operation === "create") {
-        writeFileSync(absPath, action.content ?? "", "utf-8");
-        applied.push({
-          absPath,
-          operation: "created",
-          content: action.content,
-        });
-        results.push({
-          path: p.filePath,
-          operation: "created",
-          hunksApplied: 0,
-          hunksFailed: 0,
-        });
-      } else if (action.operation === "delete") {
-        unlinkSync(absPath);
-        applied.push({ absPath, operation: "deleted" });
-        results.push({
-          path: p.filePath,
-          operation: "deleted",
-          hunksApplied: 0,
-          hunksFailed: 0,
-        });
-      } else if (action.operation === "update") {
-        writeFileSync(absPath, action.content!, "utf-8");
-        hunksApplied = p.hunks?.length ?? 0;
-        applied.push({
-          absPath,
-          operation: "updated",
-          content: action.content,
-        });
-        results.push({
-          path: p.filePath,
-          operation: "updated",
-          hunksApplied,
-          hunksFailed: 0,
-        });
-      }
+    } catch {
+      // Best effort rollback.
     }
-  } catch (e) {
-    // Best-effort rollback: revert already-applied changes
-    for (const item of applied.reverse()) {
-      try {
-        const backupPath = path.resolve(worktree, item.absPath);
-        const snap = snapshots.get(backupPath);
-        if (snap) {
-          if (snap.exists && item.operation === "updated") {
-            writeFileSync(backupPath, snap.content, "utf-8");
-          } else if (snap.exists && item.operation === "deleted") {
-            writeFileSync(backupPath, snap.content, "utf-8");
-          } else if (
-            !snap.exists &&
-            (item.operation === "created" || item.operation === "updated")
-          ) {
-            if (existsSync(backupPath)) unlinkSync(backupPath);
-          }
-        }
-      } catch {
-        // Best effort
-      }
-    }
-    throw new PatchApplyError(
-      `Patch application failed: ${e instanceof Error ? e.message : String(e)}. ` +
-        `All changes have been rolled back.`,
-      patches[0]?.filePath ?? "unknown",
+  }
+}
+
+function truncateOutput(output: string): string {
+  if (output.length <= PATCH_OUTPUT_LIMIT) return output;
+  return `${output.slice(0, PATCH_OUTPUT_LIMIT)}\n... output truncated ...`;
+}
+
+function formatPatchFailure(
+  phase: "dry-run" | "apply",
+  result: PatchRunResult,
+): string {
+  const output = truncateOutput(
+    [result.stderr.trim(), result.stdout.trim()].filter(Boolean).join("\n"),
+  );
+  const command = [result.command, ...result.args].join(" ");
+  return `${phase} failed using ${command} (exit ${result.exitCode})${
+    output ? `:\n${output}` : ""
+  }`;
+}
+
+async function applyWithCli(
+  patchText: string,
+  worktree: string,
+): Promise<ApplyCliResult> {
+  const cliPatchText = patchText.endsWith("\n") ? patchText : `${patchText}\n`;
+  const files = extractPatchFiles(cliPatchText);
+  const cli = detectPatchCli();
+  if (!cli) {
+    throw new PatchCliError(
+      "Could not find a GNU patch or BSD patch CLI on PATH",
     );
   }
 
-  return results;
+  const failures: string[] = [];
+  for (const stripCount of preferredStripCounts(files)) {
+    let validatedFiles: ValidatedPatchFile[];
+    try {
+      validatedFiles = validateFilesForStripCount(files, stripCount, worktree);
+    } catch (e) {
+      failures.push(
+        `-p${stripCount}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      continue;
+    }
+
+    const dryRunRejectPath = rejectPathFor(worktree);
+    const dryRun = await runPatchCli(
+      cli,
+      patchArgs(cli, stripCount, dryRunRejectPath, true),
+      cliPatchText,
+      worktree,
+    );
+    cleanupRejectFile(dryRunRejectPath);
+    if (dryRun.exitCode !== 0) {
+      failures.push(
+        `-p${stripCount}: ${formatPatchFailure("dry-run", dryRun)}`,
+      );
+      continue;
+    }
+
+    const snapshots = takeSnapshots(validatedFiles, worktree);
+    const applyRejectPath = rejectPathFor(worktree);
+    const apply = await runPatchCli(
+      cli,
+      patchArgs(cli, stripCount, applyRejectPath, false),
+      cliPatchText,
+      worktree,
+    );
+    cleanupRejectFile(applyRejectPath);
+    if (apply.exitCode !== 0) {
+      rollbackSnapshots(snapshots);
+      throw new PatchCliError(
+        `${formatPatchFailure("apply", apply)}. All tracked file changes have been rolled back.`,
+      );
+    }
+
+    return {
+      results: validatedFiles,
+      engine: `${cli.implementation.toUpperCase()} patch CLI (${cli.command})`,
+      stripCount,
+    };
+  }
+
+  throw new PatchCliError(
+    `Patch did not apply with any supported strip count:\n${failures.join("\n\n")}`,
+  );
 }
 
-// ─── Tool Definition ──────────────────────────────────────────────────────────
-
-function formatResults(results: PatchResult[]): string {
-  const lines: string[] = [];
-  for (const r of results) {
-    const icon =
-      r.operation === "created" ? "+" : r.operation === "deleted" ? "-" : "~";
-    const hunkInfo =
-      r.hunksApplied > 0
-        ? ` (${r.hunksApplied} hunk${r.hunksApplied > 1 ? "s" : ""} applied)`
-        : "";
-    lines.push(`${icon} ${r.path}: ${r.operation}${hunkInfo}`);
-  }
-  return lines.join("\n");
+function formatResults(results: ValidatedPatchFile[]): string {
+  return results
+    .map((result) => {
+      const icon =
+        result.operation === "created"
+          ? "+"
+          : result.operation === "deleted"
+            ? "-"
+            : "~";
+      return `${icon} ${result.displayPath}: ${result.operation}`;
+    })
+    .join("\n");
 }
 
 export const applyPatchTool = tool({
-  description: `Apply one or more unified-diff patches to files in the workspace.
+  description: `Apply a standard unified diff with GNU patch or BSD patch.
 
-IMPORTANT: This tool parses and applies patches directly in code — patches are never passed through bash, fish, heredocs, or any shell-string interpolation. All special characters ($, backticks, backslashes, quotes, Unicode) are preserved byte-for-byte.
+IMPORTANT: This tool is CLI-only. It does not apply hunks manually in TypeScript and does not support OpenCode custom patch format. Patch text is passed to GNU/BSD patch through stdin without using a shell, heredoc, or shell-string interpolation.
 
 Supported formats:
-- Standard unified diff (diff -u output, git diff output)
-- OpenCode custom format (*** Begin Patch ... *** End Patch)
+- Standard unified diff (diff -u output)
+- Git unified diff (diff --git with ---/+++ file headers)
 
-Operations supported per patch: create files, update files, delete files.
-Multi-file patches are validated all-or-nothing: if any operation would fail, none are applied.
+Operations supported by the patch CLI: create files, update files, delete files.
+The tool dry-runs first, then applies with the same strip count. If apply fails after dry-run, tracked target files are restored from snapshots.
 
 Path validation rules:
 - No path traversal (../) or absolute paths
 - All paths must resolve within the workspace root
 - Symlink escapes are detected and rejected
 
-Example unified diff (create file):
-\`\`\`
---- /dev/null
-+++ b/src/new-file.ts
-@@ -0,0 +1,3 @@
-+export function hello() {
-+  return "world";
-+}
-\`\`\`
-
-Example unified diff (update file):
+Example unified diff:
 \`\`\`
 --- a/src/app.ts
 +++ b/src/app.ts
-@@ -1,4 +1,4 @@
+@@ -1,3 +1,3 @@
+ const unchanged = true;
 -const OLD = "value";
 +const NEW = "value";
- const unchanged = true;
 \`\`\``,
 
   args: {
     patchText: tool.schema
       .string()
-      .describe(
-        "The full unified-diff or OpenCode-format patch text describing all changes",
-      ),
+      .describe("The full standard unified-diff patch text to apply"),
   },
 
   async execute(args, context) {
     const worktree = resolveWorktree(context);
     const patchText = String(args.patchText ?? "");
 
-    let patches: FilePatch[];
     try {
-      patches = parsePatch(patchText);
+      const applied = await applyWithCli(patchText, worktree);
+      const formatted = formatResults(applied.results);
+      const summary = `${applied.results.length} file(s) changed via ${applied.engine} -p${applied.stripCount}:\n${formatted}`;
+      context.metadata({
+        title: `Applied patch to ${applied.results.length} file(s)`,
+        metadata: {
+          files: applied.results.map((result) => result.displayPath),
+          engine: applied.engine,
+          stripCount: applied.stripCount,
+        },
+      });
+      return summary;
     } catch (e) {
-      if (e instanceof DiffParseError) {
-        return `Error: Patch parse failed — ${e.message}`;
-      }
-      throw e;
-    }
-
-    if (patches.length === 0) {
-      return "Error: No file operations found in patch text. Check the format.";
-    }
-
-    let results: PatchResult[];
-    try {
-      results = applyPatches(patches, worktree);
-    } catch (e) {
-      if (e instanceof PathValidationError || e instanceof PatchApplyError) {
+      if (
+        e instanceof PatchInputError ||
+        e instanceof PathValidationError ||
+        e instanceof PatchCliError
+      ) {
         return `Error: ${e.message}`;
       }
       throw e;
     }
-
-    const formatted = formatResults(results);
-    const summary = `${results.length} file(s) changed:\n${formatted}`;
-    context.metadata({
-      title: `Applied patch to ${results.length} file(s)`,
-      metadata: { files: results.map((r) => r.path) },
-    });
-    return summary;
   },
 });
 
