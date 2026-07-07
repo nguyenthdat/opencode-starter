@@ -1,0 +1,3 @@
+[submodule ".opencode/vendor/xberg-plugins"]
+	path = .opencode/vendor/xberg-plugins
+	url = https://github.com/xberg-io/plugins.git

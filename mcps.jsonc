@@ -122,5 +122,6 @@
     "everything": { "type": "local", "command": ["bunx", "-y", "@modelcontextprotocol/server-everything"] },
     "time": { "type": "local", "command": ["uvx", "mcp-server-time"] },
     "token-optimizer": { "type": "local", "command": ["bunx", "-y", "token-optimizer-mcp"] },
+    "liter-llm": { "type": "local", "command": ["bash", ".opencode/vendor/xberg-plugins/plugins/liter-llm/scripts/mcp-launch.sh"] },
   },
 }
