@@ -278,6 +278,53 @@ function _link_team_skills
     end
 end
 
+function _link_team_instruction
+    # Symlink harness/<team>/<team>.md -> .opencode/instructions/<team>.md
+    set -l team $argv[1]
+    set -l force $argv[2]
+    set -l dry_run $argv[3]
+    set -l src "$PROJECT_ROOT/harness/$team/$team.md"
+    set -l dst "$PROJECT_ROOT/.opencode/instructions/$team.md"
+
+    test -f "$src"; or return
+
+    set -l rel_target (_resolve_link_target "$dst" "$src")
+
+    if _is_symlink_to "$dst" "$src"
+        echo "  SKIP   instructions/$team.md (already linked)"
+        set -g _skipped (math $_skipped + 1)
+        return
+    end
+
+    if test -e "$dst" -o -L "$dst"
+        if test "$force" = true
+            if test "$dry_run" = true
+                echo "  [dry-run] would replace: instructions/$team.md"
+                set -g _linked (math $_linked + 1)
+            else
+                echo "  FORCE  instructions/$team.md (replacing existing)"
+                rm -rf "$dst"
+                ln -s "$rel_target" "$dst"
+                set -g _linked (math $_linked + 1)
+            end
+        else
+            _warn "instructions/$team.md exists (use --force to replace)"
+            set -g _warnings (math $_warnings + 1)
+            set -g _skipped (math $_skipped + 1)
+        end
+        return
+    end
+
+    if test "$dry_run" = true
+        echo "  [dry-run] would link: instructions/$team.md"
+        set -g _linked (math $_linked + 1)
+    else
+        echo "  LINK   instructions/$team.md"
+        ln -s "$rel_target" "$dst"
+        set -g _linked (math $_linked + 1)
+    end
+end
+
 function _link_team
     set -l team $argv[1]
     set -l force $argv[2]
@@ -286,6 +333,7 @@ function _link_team
     echo "── Linking harness/$team ──"
     _link_team_agents "$team" "$force" "$dry_run"
     _link_team_skills "$team" "$force" "$dry_run"
+    _link_team_instruction "$team" "$force" "$dry_run"
 end
 
 # ── unlink ──────────────────────────────────────────────────────────────────
@@ -386,6 +434,35 @@ function _unlink_team_skills
     end
 end
 
+function _unlink_team_instruction
+    set -l team $argv[1]
+    set -l force $argv[2]
+    set -l dry_run $argv[3]
+    set -l src "$PROJECT_ROOT/harness/$team/$team.md"
+    set -l dst "$PROJECT_ROOT/.opencode/instructions/$team.md"
+
+    if not test -e "$dst" -a -L "$dst"
+        test -L "$dst"; or return
+        test -e "$dst"; or return
+    end
+
+    set -l link_target (_realpath_link "$dst" 2>/dev/null)
+    set -l expected_src (realpath "$src" 2>/dev/null)
+
+    if test -z "$link_target" -o -z "$expected_src" -o "$link_target" != "$expected_src"
+        return
+    end
+
+    if test "$dry_run" = true
+        echo "  [dry-run] would remove: instructions/$team.md"
+        set -g _unlinked (math $_unlinked + 1)
+    else
+        echo "  UNLINK instructions/$team.md"
+        rm "$dst"
+        set -g _unlinked (math $_unlinked + 1)
+    end
+end
+
 function _unlink_team
     set -l team $argv[1]
     set -l force $argv[2]
@@ -394,6 +471,7 @@ function _unlink_team
     echo "── Unlinking harness/$team ──"
     _unlink_team_agents "$team" "$force" "$dry_run"
     _unlink_team_skills "$team" "$force" "$dry_run"
+    _unlink_team_instruction "$team" "$force" "$dry_run"
 end
 
 # ── main dispatch ───────────────────────────────────────────────────────────
