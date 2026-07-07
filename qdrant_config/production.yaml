@@ -1,0 +1,23 @@
+log_level: INFO
+
+service:
+  host: 0.0.0.0
+  http_port: 6333
+  grpc_port: 6334
+  max_request_size_mb: 32
+
+storage:
+  optimizers:
+    default_segment_number: 2
+    memmap_threshold_kb: 256
+    indexing_threshold_kb: 64
+    flush_interval_sec: 10
+    max_optimization_threads: 4
+    cpu_budget: 2
+  performance:
+    max_search_threads: 8
+  wal:
+    wal_capacity_mb: 64
+
+cluster:
+  enabled: false
