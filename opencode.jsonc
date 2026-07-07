@@ -5,7 +5,7 @@
   "formatter": true,
   // Fish shell is the default. Set shell to /bin/bash to revert.
   // Plugin at plugins/fish-shell.ts handles Fish-aware command wrapping and LLM instruction updates.
-  "shell": "/opt/homebrew/bin/fish",
+  "shell": "fish",
   "permission": {
     "edit": "allow",
     "bash": "allow",
@@ -44,16 +44,16 @@
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN}" },
     },
-    "github-bitbytelab": {
-      "type": "remote",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN_BITBYTELAB}" },
-    },
-    "github-vnquants": {
-      "type": "remote",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN_VNQUANTS}" },
-    },
+    // "github-bitbytelab": {
+    //   "type": "remote",
+    //   "url": "https://api.githubcopilot.com/mcp/",
+    //   "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN_BITBYTELAB}" },
+    // },
+    // "github-vnquants": {
+    //   "type": "remote",
+    //   "url": "https://api.githubcopilot.com/mcp/",
+    //   "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN_VNQUANTS}" },
+    // },
     "sequential-thinking": {
       "enabled": true,
       "type": "local",

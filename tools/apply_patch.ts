@@ -20,7 +20,6 @@
  */
 
 import { tool } from "@opencode-ai/plugin";
-import { z } from "zod";
 import * as path from "path";
 import {
   existsSync,
@@ -513,6 +512,17 @@ function parsePatch(input: string): FilePatch[] {
 
 // ─── Path Validation ──────────────────────────────────────────────────────────
 
+function resolveWorktree(context: {
+  worktree: string;
+  directory: string;
+}): string {
+  const fromContext = context.worktree || context.directory;
+  if (fromContext && fromContext !== "/" && existsSync(fromContext)) {
+    return fromContext;
+  }
+  return process.cwd();
+}
+
 function validatePath(filePath: string, worktree: string): string {
   // Reject empty paths
   if (!filePath || filePath.trim() === "") {
@@ -536,12 +546,10 @@ function validatePath(filePath: string, worktree: string): string {
     throw new PathValidationError(`Path traversal not allowed: ${filePath}`);
   }
 
-  // Resolve to absolute path within worktree
   const resolved = path.resolve(worktree, filePath);
 
-  // Verify resolved path stays within worktree
-  const normalizedWorktree = path.resolve(worktree) + path.sep;
-  const normalizedResolved = path.resolve(resolved) + path.sep;
+  const normalizedWorktree = path.join(path.resolve(worktree), path.sep);
+  const normalizedResolved = path.join(path.resolve(resolved), path.sep);
   if (!normalizedResolved.startsWith(normalizedWorktree)) {
     throw new PathValidationError(
       `Path escapes workspace: ${filePath} resolves to ${resolved} which is outside ${worktree}`,
@@ -558,8 +566,7 @@ function validatePath(filePath: string, worktree: string): string {
     try {
       if (existsSync(checkPath)) {
         const realPath = realpathSync(checkPath);
-        const normalizedCheck = path.resolve(checkPath) + path.sep;
-        const normalizedReal = path.resolve(realPath) + path.sep;
+        const normalizedReal = path.join(path.resolve(realPath), path.sep);
         if (!normalizedReal.startsWith(normalizedWorktree)) {
           throw new PathValidationError(
             `Symlink escapes workspace: ${filePath} → ${realPath} is outside ${worktree}`,
@@ -965,7 +972,7 @@ Example unified diff (update file):
 \`\`\``,
 
   args: {
-    patchText: z
+    patchText: tool.schema
       .string()
       .describe(
         "The full unified-diff or OpenCode-format patch text describing all changes",
@@ -973,11 +980,12 @@ Example unified diff (update file):
   },
 
   async execute(args, context) {
-    const worktree = context.worktree || context.directory;
+    const worktree = resolveWorktree(context);
+    const patchText = String(args.patchText ?? "");
 
     let patches: FilePatch[];
     try {
-      patches = parsePatch(args.patchText);
+      patches = parsePatch(patchText);
     } catch (e) {
       if (e instanceof DiffParseError) {
         return `Error: Patch parse failed — ${e.message}`;
