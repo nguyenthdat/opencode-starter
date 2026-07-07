@@ -314,3 +314,4 @@ pyrightconfig.json
 .DS_Store
 .qdrant/
 .cloakbrowser-artifacts/
+qdrant_data/

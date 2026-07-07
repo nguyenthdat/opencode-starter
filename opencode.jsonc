@@ -30,7 +30,7 @@
       "type": "local",
       "command": ["uvx", "mcp-server-qdrant"],
       "environment": {
-        "QDRANT_LOCAL_PATH": ".qdrant",
+        "QDRANT_URL": "http://localhost:6333",
         "EMBEDDING_MODEL": "intfloat/multilingual-e5-large",
         "TOOL_STORE_DESCRIPTION": "Store durable project memory: fixed errors with root cause and solution, user-requested changes and their rationale, confirmed bug fixes, implementation decisions, architectural rationale, constraints, conventions, reusable workflows, resolved blockers, and lessons learned. Automatically store after every meaningful task completion, error fix, or user-directed change. Never store secrets, credentials, temporary logs, raw conversations, or unverified guesses.",
         "TOOL_FIND_DESCRIPTION": "Search long-term project memory before starting any task. Find architectural decisions, constraints, conventions, previous errors and their fixes, known issues with workarounds, user-requested changes history, reusable implementation patterns, and task-relevant context. Always search first to avoid repeating past mistakes or re-solving solved problems.",
