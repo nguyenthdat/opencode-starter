@@ -315,3 +315,5 @@ pyrightconfig.json
 .qdrant/
 .cloakbrowser-artifacts/
 qdrant_data/
+*.orig
+*.rej

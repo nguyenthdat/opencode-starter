@@ -22,7 +22,7 @@
     "task": "allow",
     "external_directory": "ask",
   },
-  "plugin": ["@ex-machina/opencode-anthropic-auth"],
+  "plugin": ["@ex-machina/opencode-anthropic-auth", "./plugins/fish-shell.ts", "./plugins/cargo.ts"],
   "lsp": true,
   "mcp": {
     "qdrant": {
