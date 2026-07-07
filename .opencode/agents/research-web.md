@@ -8,6 +8,7 @@ permission:
   webfetch: allow
   task:
     "*": deny
+    "search": allow
 ---
 
 # Research Web
