@@ -3,9 +3,6 @@
   "default_agent": "build",
   "instructions": [".opencode/instructions/*", "~/.config/opencode/instructions/*", "~/.opencode/instructions/*"],
   "formatter": true,
-  // Fish shell is the default. Set shell to /bin/bash to revert.
-  // Plugin at plugins/fish-shell.ts handles Fish-aware command wrapping and LLM instruction updates.
-  "shell": "fish",
   "permission": {
     "edit": "allow",
     "bash": "allow",
