@@ -18,6 +18,16 @@
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN}" },
     },
+    "github-bitbytelab": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN_BITBYTELAB}" },
+    },
+    "github-vnquants": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN_VNQUANTS}" },
+    },
     "aws": {
       "type": "local",
       "command": ["uvx", "awslabs.aws-documentation-mcp-server@latest"],

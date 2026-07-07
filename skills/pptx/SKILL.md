@@ -4,7 +4,6 @@ description: "Use this skill any time a .pptx file is involved in any way — as
 compatibility: opencode
 metadata:
   domain: document-processing
-  audience: software-engineer
 ---
 
 # PPTX Skill

@@ -4,7 +4,6 @@ description: "Use this skill any time a spreadsheet file is the primary input or
 compatibility: opencode
 metadata:
   domain: document-processing
-  audience: software-engineer
 ---
 
 # Requirements for Outputs

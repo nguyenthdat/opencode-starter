@@ -4,7 +4,6 @@ description: Use this skill whenever the user wants to do anything with PDF file
 compatibility: opencode
 metadata:
   domain: document-processing
-  audience: software-engineer
 ---
 
 # PDF Processing Guide

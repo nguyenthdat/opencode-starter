@@ -4,7 +4,6 @@ description: "Use this skill whenever the user wants to create, read, edit, or m
 compatibility: opencode
 metadata:
   domain: document-processing
-  audience: software-engineer
 ---
 
 # DOCX creation, editing, and analysis
