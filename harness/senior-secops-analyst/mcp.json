@@ -1,0 +1,43 @@
+{
+  "aws": {
+    "type": "local",
+    "command": ["uvx", "awslabs.aws-documentation-mcp-server@latest"],
+    "environment": {
+      "FASTMCP_LOG_LEVEL": "ERROR",
+      "AWS_DOCUMENTATION_PARTITION": "aws",
+      "MCP_USER_AGENT": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+    }
+  },
+  "microsoft.docs": { "type": "remote", "url": "https://learn.microsoft.com/api/mcp" },
+  "playwright": { "type": "local", "command": ["bunx", "@playwright/mcp@latest", "--browser", "chrome"] },
+  "chrome.devtools": { "type": "local", "command": ["bunx", "chrome-devtools-mcp@latest", "--autoConnect", "--no-usage-statistics"] },
+  "firefox.devtools": {
+    "type": "local",
+    "command": ["bunx", "-y", "@mozilla/firefox-devtools-mcp@latest", "--headless", "--viewport", "1280x720"],
+    "environment": { "START_URL": "about:blank" }
+  },
+  "filescan": { "type": "local", "command": ["filescan-mcp"] },
+  "microsoft.defender": { "type": "local", "command": ["microsoft-defender-mcp-server"] },
+  "cyble.vision": { "type": "local", "command": ["cyble-mcp-server"] },
+  "wiz": {
+    "type": "remote",
+    "url": "https://mcp.app.wiz.io",
+    "headers": {
+      "Wiz-Client-Id": "{env:WIZ_CLIENT_ID}",
+      "Wiz-Client-Secret": "{env:WIZ_CLIENT_SECRET}",
+      "Wiz-DataCenter": "{env:WIZ_TENANT_DC}"
+    }
+  },
+  "atlassian": {
+    "type": "local",
+    "command": ["uvx", "mcp-atlassian"],
+    "environment": {
+      "JIRA_URL": "{env:JIRA_URL}",
+      "JIRA_USERNAME": "{env:JIRA_USERNAME}",
+      "JIRA_API_TOKEN": "{env:JIRA_API_TOKEN}",
+      "CONFLUENCE_URL": "{env:CONFLUENCE_URL}",
+      "CONFLUENCE_USERNAME": "{env:CONFLUENCE_USERNAME}",
+      "CONFLUENCE_API_TOKEN": "{env:CONFLUENCE_API_TOKEN}"
+    }
+  }
+}
