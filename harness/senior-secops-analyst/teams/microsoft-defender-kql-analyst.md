@@ -30,6 +30,12 @@ Run Microsoft Defender Advanced Hunting KQL queries across Defender XDR telemetr
 - Defender for Cloud Apps (CASB telemetry)
 - Microsoft Graph Security API
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/14_defender_kql.md` (KQL queries, results, findings, incidents)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Identify relevant Advanced Hunting tables.
 2. Write and validate KQL query.

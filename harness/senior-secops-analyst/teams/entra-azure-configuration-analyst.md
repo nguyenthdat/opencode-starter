@@ -29,6 +29,12 @@ Review Microsoft Entra ID (Azure AD) and Azure security configurations. Assess i
 - Microsoft Defender for Identity signals
 - Entra ID sign-in logs, audit logs, risky user/sign-in reports
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/16_entra.md` (findings by category, compliance benchmark, actions)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Review conditional access policies: coverage, exclusions, gaps.
 2. Check MFA enforcement: per-user MFA vs CA-based, break-glass accounts.

@@ -29,6 +29,12 @@ Query and investigate security events in Elastic Security / Kibana. Execute KQL 
 - Endpoint telemetry (if Elastic Agent deployed)
 - Auditbeat, Filebeat, Winlogbeat, Packetbeat data
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/12_elastic.md` (queries executed, events found, timeline, findings)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Identify relevant indices and time range.
 2. Run KQL/EQL query for the target activity.

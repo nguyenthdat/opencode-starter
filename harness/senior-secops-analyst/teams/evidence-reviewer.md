@@ -26,6 +26,12 @@ Perform QA on investigation outputs. Verify evidence chains, check for logical g
 - Company context file
 - Original alert/task payload
 
+## Workspace Protocol
+
+- **Read from:** ALL files in `_workspace/` (context, task, agent outputs)
+- **Write to:** `_workspace/90_review.md` (QA result, issues found, assumptions checked, verdict alignment)
+- Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Does the output answer the original question?
 2. Is every claim backed by at least one evidence source?

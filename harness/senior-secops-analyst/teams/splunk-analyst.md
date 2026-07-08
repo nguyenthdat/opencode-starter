@@ -27,6 +27,12 @@ Query and investigate security events in Splunk using SPL. Analyze notable event
 - Splunk Enterprise Security (notable events, risk scores, asset/identity framework)
 - Common sourcetypes: WinEventLog, stream (network), cloud API logs, auth logs
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/13_splunk.md` (SPL queries, results, findings)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Identify relevant indexes and sourcetypes.
 2. Run SPL search with appropriate time range.

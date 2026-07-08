@@ -26,6 +26,12 @@ Triage security alerts from any source (SIEM, EDR, email security, CASB, NGFW, H
 - CTI Correlation Analyst (for IOCs)
 - Browser investigation (for suspicious URLs)
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/10_triage.md` (triage verdict, IOCs, evidence summary, actions)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Parse alert: timestamp, source, rule name, severity, raw payload.
 2. Identify the detection logic that triggered the alert.

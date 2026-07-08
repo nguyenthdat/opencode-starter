@@ -29,6 +29,12 @@ Deep analysis of phishing URLs, emails, and landing pages. Determine malicious i
 - Brand Protection Analyst (for brand impersonation)
 - WHOIS, DNS lookup, SSL certificate inspection
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/17_phishing.md` (URL analysis, page type, IOCs, takedown guidance)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Defang URL. Extract root domain, path, parameters.
 2. Check domain registration: creation date, registrar, privacy status.

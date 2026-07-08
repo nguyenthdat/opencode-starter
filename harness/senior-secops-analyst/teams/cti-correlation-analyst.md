@@ -29,6 +29,12 @@ Correlate IOCs (IPs, domains, URLs, file hashes, email addresses) against threat
 - Exa web search for threat reports
 - MITRE ATT&CK mapping
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/19_cti.md` (IOC lookup results, reputation, attribution, confidence)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Classify IOC type and scope.
 2. Query primary CTI sources (Cyble, CommandZero, VT).

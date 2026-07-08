@@ -28,6 +28,12 @@ Transform investigation findings into structured reports: executive summaries, o
 - Markdown for draft output
 - Company context for stakeholder references
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json`, `_workspace/01_task.md`, and ALL prior agent outputs in `_workspace/`
+- **Write to:** `_workspace/91_report.md` (structured report), `_workspace/report.docx` (if DOCX requested)
+- Do not create files outside `_workspace/`. Reference workspace paths in report.
+
 ## Analysis Checklist
 1. Collect all agent outputs and evidence.
 2. Structure per the required output format.

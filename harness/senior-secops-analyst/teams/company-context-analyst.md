@@ -27,6 +27,13 @@ Parse and analyze company context from multiple sources to build an operational 
 - Jira/Confluence API (if available)
 - HTML-to-markdown for web documentation
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/01_task.md` (task scope, if exists)
+- **Write to:** `_workspace/00_context.json` (structured company context — mandatory output)
+- If no context file provided, mark `context_gaps` field and write `CONTEXT GAP` note to output.
+- All downstream agents depend on this output. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Locate and read the context file or ask user for it.
 2. Extract and structure:

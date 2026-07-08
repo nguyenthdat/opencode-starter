@@ -29,6 +29,12 @@ Investigate cloud security findings and misconfigurations using Wiz. Analyze clo
 - Wiz Security Graph for relationship analysis
 - Wiz Issues, Vulnerabilities, and Compliance frameworks
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/15_wiz.md` (findings, toxic combinations, blast radius, remediation)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Retrieve the Wiz finding details (issue type, resource, severity).
 2. Check for toxic combinations (e.g., public exposure + privilege + vulnerability).

@@ -28,6 +28,12 @@ Conduct hypothesis-driven threat hunting across available security telemetry. Id
 - CTI Correlation Analyst (for IOC-led hunts)
 - Company context (known benign filtering)
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/11_threat_hunt.md` (hypothesis, queries, hits, detection gaps)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Define hypothesis: "Adversary is doing X using technique T."
 2. Identify data sources that would contain evidence of T.

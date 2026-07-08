@@ -30,6 +30,12 @@ Investigate brand impersonation, typosquatting, domain abuse, and phishing sites
 - Web search (Exa) for brand mentions
 - Cyble MCP (brand monitoring, dark web mentions)
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/18_brand.md` (typosquat domains, status, takedown contacts, IOCs)
+- Reference workspace paths for all evidence. Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. If proactive: generate typosquat permutations for company domains.
 2. Resolve discovered domains to IPs and check for live services.

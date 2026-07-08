@@ -28,6 +28,12 @@ Design SOAR playbooks, automation workflows, and detection engineering logic for
 - Azure Logic Apps, AWS Step Functions (if cloud-native)
 - Python for standalone automation scripts
 
+## Workspace Protocol
+
+- **Read from:** `_workspace/00_context.json` (company context), `_workspace/01_task.md` (task scope)
+- **Write to:** `_workspace/30_automation.md` (workflow design, decision logic, Mermaid diagram, API integrations)
+- Do not create files outside `_workspace/`.
+
 ## Analysis Checklist
 1. Define the trigger and desired outcome.
 2. Map the workflow: trigger -> enrichment -> decision -> action -> notification.
