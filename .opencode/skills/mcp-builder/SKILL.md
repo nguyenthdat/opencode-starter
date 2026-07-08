@@ -1,6 +1,7 @@
 ---
 name: mcp-builder
-description: Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services in any official SDK language: Python (FastMCP), TypeScript/Node, Go, Rust (rmcp), Java, Kotlin, C#/.NET, PHP, Ruby, or Swift.
+description: >-
+  Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services in any official SDK language: Python (FastMCP), TypeScript/Node, Go, Rust (rmcp), Java, Kotlin, C#/.NET, PHP, Ruby, or Swift.
 compatibility: opencode
 metadata:
   domain: mcp

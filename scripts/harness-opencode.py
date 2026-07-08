@@ -55,8 +55,14 @@ def load_jsonc(path: Path) -> dict[str, Any]:
 
 
 def save_jsonc(path: Path, data: dict[str, Any]) -> None:
-    """Write JSON5 with 2-space indent and trailing commas."""
-    text = json5.dumps(data, indent=2, ensure_ascii=False, trailing_commas=True)
+    """Write JSONC with 2-space indent, quoted keys, and trailing commas."""
+    text = json5.dumps(
+        data,
+        indent=2,
+        ensure_ascii=False,
+        trailing_commas=True,
+        quote_keys=True,
+    )
     path.write_text(text + "\n", encoding="utf-8")
 
 
