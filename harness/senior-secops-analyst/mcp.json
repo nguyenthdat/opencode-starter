@@ -17,6 +17,7 @@
     "environment": { "START_URL": "about:blank" }
   },
   "filescan": { "type": "local", "command": ["filescan-mcp"] },
+  "cmdzero": { "type": "local", "command": ["cmdzero-mcp-server"] },
   "microsoft.defender": { "type": "local", "command": ["microsoft-defender-mcp-server"] },
   "cyble.vision": { "type": "local", "command": ["cyble-mcp-server"] },
   "wiz": {
