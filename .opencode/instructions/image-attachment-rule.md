@@ -1,16 +1,15 @@
-# Image/File Attachment Rule
+# Image Path Resolution
 
-When the user attaches, pastes, or references an image/file, treat it as an accessible local file.
+When the user attaches or pastes an image/file and only a filename is visible:
 
-Before answering:
-1. Identify the local attachment path provided by OpenCode, `--file`, or the user message.
-2. If the path points to an image, screenshot, PDF, Office file, or binary document, use xberg first.
-3. Analyze the extracted OCR/text/layout/metadata from xberg.
-4. Only say the file cannot be analyzed if:
-   - no local path is available,
-   - the file does not exist,
-   - or xberg fails.
+1. Do not ask the user for the path immediately.
+2. First try to resolve the file path by checking:
+   - the path explicitly written in the user prompt,
+   - OpenCode attachment metadata,
+   - current working directory,
+   - `/tmp`,
+   - common OpenCode temp/cache directories.
+3. If a matching readable file is found, use that full path with xberg.
+4. Ask the user for the path only after path resolution fails.
 
-Never say “I cannot view images” when a local file path or OpenCode attachment path exists.
-
-If the user attaches images, or similar, immediately use xberg on the attached file path.
+Never ask for a full path when the prompt already contains an absolute path.
