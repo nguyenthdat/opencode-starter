@@ -1,11 +1,11 @@
 ---
 name: rust-orchestrator
-description: "Coordinates the Senior Rust Engineer harness team for Rust development tasks. Use for new Rust features, refactors, crate design, performance optimization, async implementation, security audits, or any Rust engineering work that needs multi-agent review. Also use for rerun, update, revise, improve, partial rerun, audit, or sync of previous Rust harness outputs."
+description: "Reference skill for the Senior Rust Engineer harness. Loaded by the Rust Engineer Lead agent (`teams/rust-engineer-lead.md`). Documents workflow phases, agent dispatch patterns, task prompt templates, and error handling. Use when orchestrating the senior-rust-engineer team."
 ---
 
 # Senior Rust Engineer Orchestrator
 
-Coordinates specialist agents to produce production-grade Rust code with architecture design, implementation, multi-perspective review, testing, and final summary.
+Loaded by the **Rust Engineer Lead** (`teams/rust-engineer-lead.md` — `mode: all`, task permitted) to coordinate the senior-rust-engineer harness team. This skill documents the workflow; the lead agent executes it.
 
 ## Execution mode
 

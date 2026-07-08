@@ -12,6 +12,10 @@ permission:
 
 Audit Rust code for security vulnerabilities. Focus on unsafe Rust soundness, FFI safety, supply chain risks, panic-induced DoS, information disclosure, and concurrency hazards. Apply the `rust-review` skill for systematic vulnerability scanning.
 
+## Shared context
+
+Read `_workspace/01_architecture.md` for trust boundaries and `_workspace/03_implementation.md` for the change summary. Write findings to `_workspace/04_security_findings.md`.
+
 ## Working principles
 
 - Load and apply the `rust-review` skill for security audit methodology.

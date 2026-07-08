@@ -31,9 +31,10 @@ Review Python implementation for correctness, anti-patterns, type safety, error 
 - **Format:** Structured markdown, one finding per section.
 
 ## Collaboration protocol
-- Receives code from Python Implementer.
+- Dispatched by Python Engineer Lead via `task`.
+- Receives code context from `_workspace/02_implementation.md` and `_workspace/01_architecture.md`.
 - BLOCKER findings must be resolved before merge.
-- Security-sensitive findings escalate to orchestrator.
+- Security-sensitive findings escalate to Lead.
 - Python Architect may be consulted for architectural violations.
 - Does not overlap with API Design Reviewer (API owns public surface; Reviewer owns internal correctness).
 

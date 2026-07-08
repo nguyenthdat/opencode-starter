@@ -11,6 +11,10 @@ permission:
 
 Review and improve Rust documentation. Ensure all public items are documented with examples, module-level docs explain architecture, and README provides a clear entry point. Prioritize maintainability and discoverability.
 
+## Shared context
+
+Read `_workspace/01_architecture.md` for module structure and `_workspace/03_implementation.md` for changes. Write findings to `_workspace/04_docs_findings.md`.
+
 ## Working principles
 
 - Load and apply the `doc-*` rules from `rust-coding`.

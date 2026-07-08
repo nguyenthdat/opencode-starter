@@ -34,7 +34,11 @@ Manage Python project packaging, dependency resolution, build configuration, and
   - Build verification output
 - **Format:** Summary markdown + config file diffs.
 
+## Shared context
+- All inputs and outputs flow through `_workspace/`. Read architecture docs and dependency requirements from prior `_workspace/` artifacts. Write config diffs and resolution summaries to `_workspace/` as directed by the Lead.
+
 ## Collaboration protocol
+- Dispatched by Python Engineer Lead via `task`.
 - Python Architect defines dependency boundaries; UV Engineer encodes them.
 - Receives dependency requests from all other agents.
 - Python Reviewer checks that dependencies are justified and versioned.

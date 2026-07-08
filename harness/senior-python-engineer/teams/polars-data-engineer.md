@@ -34,9 +34,13 @@ Design and implement Polars-based data pipelines: ETL workflows, data transforma
   - Error handling for malformed data
 - **Format:** Code + summary markdown.
 
+## Shared context
+- All inputs and outputs flow through `_workspace/`. Read source data descriptions and architecture docs from prior `_workspace/` artifacts. Write pipeline docs, schemas, and query plans to `_workspace/` as directed by the Lead.
+
 ## Collaboration protocol
+- Dispatched by Python Engineer Lead via `task`.
 - Hands off pipeline code to Python Reviewer and Testing Engineer.
-- ML Engineer consumes pipeline output for feature engineering.
+- ML Engineer consumes pipeline output for feature engineering via `_workspace/`.
 - Performance Engineer reviews query plans for optimization opportunities.
 - Does not design ML features or models — that is ML Engineer's domain.
 

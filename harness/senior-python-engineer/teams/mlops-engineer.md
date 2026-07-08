@@ -35,8 +35,12 @@ Deploy, serve, and monitor ML models in production. Handles model registry, serv
   - Operational runbook (startup, rollback, scaling)
 - **Format:** Code + deployment docs.
 
+## Shared context
+- All inputs and outputs flow through `_workspace/`. Write deployment docs to `_workspace/08_deployment.md`. Read model artifact path from `_workspace/07_ml_run.md`.
+
 ## Collaboration protocol
-- Receives model artifact from ML Engineer.
+- Dispatched by Python Engineer Lead via `task`.
+- Receives model artifact from ML Engineer via `_workspace/`.
 - API Design Reviewer reviews serving API contracts.
 - Python Reviewer reviews code.
 - Performance Engineer profiles inference performance under load.

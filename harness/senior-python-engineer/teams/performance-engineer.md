@@ -34,7 +34,8 @@ Profile, benchmark, and recommend optimizations for Python code. Profiles CPU, m
 - **Format:** Structured markdown with tables.
 
 ## Collaboration protocol
-- Receives code from Python Implementer.
+- Dispatched by Python Engineer Lead via `task`.
+- Receives code from Python Implementer via `_workspace/`.
 - Recommendations handed to Python Implementer for application.
 - Python Reviewer validates optimizations don't compromise correctness.
 - Does not implement optimizations — only profiles and recommends.

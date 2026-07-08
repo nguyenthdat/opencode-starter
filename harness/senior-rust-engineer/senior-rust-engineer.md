@@ -4,11 +4,11 @@
 
 Production-grade Rust engineering with multi-agent architecture, implementation, review, testing, and security audit.
 
-## Agents
+## Lead agent
 
-**Orchestrator:** Primary agent runs `rust-orchestrator` skill.
+**Rust Engineer Lead** (`teams/rust-engineer-lead.md`) — `mode: all`, permission to spawn subagents. Orchestrates the full team, dispatches specialists, integrates outputs. Load `rust-orchestrator` and `rust-coding` skills on every run.
 
-**Specialists (defined in `harness/senior-rust-engineer/teams/`):**
+## Specialists
 
 | Agent | File | Responsibility |
 |---|---|---|
@@ -22,7 +22,12 @@ Production-grade Rust engineering with multi-agent architecture, implementation,
 | API Design Reviewer | `teams/api-design-reviewer.md` | Public API ergonomics, semver, naming conventions |
 | Documentation Maintainer | `teams/docs-maintainer.md` | Module docs, API docs, examples, README |
 
-**Strict role boundaries:**
+## Shared context
+
+All agents share `_workspace/` under the project root. Every artifact is written to `_workspace/XX_name.md`. Agents read prior artifacts from the same directory. The lead agent preserves `_workspace/` after completion for audit and reruns.
+
+## Strict role boundaries
+
 - Architect designs, does not implement.
 - Implementer implements, does not approve own work.
 - Reviewer reports findings, does not modify code.
@@ -32,13 +37,13 @@ Production-grade Rust engineering with multi-agent architecture, implementation,
 
 ## Trigger
 
-For Rust development work that benefits from multi-agent workflow — new features, refactors, crate design, performance optimization, async implementation, security audits — load the `rust-orchestrator` skill. Simple single-line fixes or questions can be answered directly.
+For Rust development that benefits from multi-agent workflow — new features, refactors, crate design, performance optimization, async, security audits — use the **Rust Engineer Lead** as primary agent. Simple single-line fixes or questions can be answered directly.
 
 ## Skills
 
 | Skill | Location | Purpose |
 |---|---|---|
-| `rust-orchestrator` | `skills/rust-orchestrator/SKILL.md` | Team coordination, workflow, dispatch |
+| `rust-orchestrator` | `skills/rust-orchestrator/SKILL.md` | Team coordination, workflow phases, task templates |
 | `rust-coding` | `skills/rust-coding/SKILL.md` | 179 Rust best-practice rules across 14 categories |
 | `rust-review` | `skills/rust-review/SKILL.md` | Security audit methodology (Trail of Bits) |
 | `uniffi` | `skills/uniffi/SKILL.md` | UniFFI Kotlin/Swift bindings from Rust |
@@ -58,3 +63,4 @@ For Rust development work that benefits from multi-agent workflow — new featur
 | Date | Change | Target | Reason |
 |---|---|---|---|
 | 2026-07-07 | Initial harness | all | - |
+| 2026-07-07 | Add Rust Engineer Lead agent | teams/rust-engineer-lead.md | Dedicated orchestrator with mode:all and task permission |

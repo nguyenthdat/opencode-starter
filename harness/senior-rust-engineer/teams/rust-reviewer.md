@@ -12,6 +12,10 @@ permission:
 
 Review Rust code changes for correctness, safety, idiomatic usage, and maintainability. Find ownership issues, lifetime mistakes, error handling gaps, anti-patterns, and potential bugs. Prioritize soundness over style.
 
+## Shared context
+
+Read `_workspace/01_architecture.md` for design intent and `_workspace/03_implementation.md` for the implementation summary. Write findings to `_workspace/04_review_findings.md`.
+
 ## Working principles
 
 - Load and apply the `rust-review` skill for security-critical review paths.

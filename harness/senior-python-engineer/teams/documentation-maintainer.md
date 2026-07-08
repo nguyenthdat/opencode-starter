@@ -29,8 +29,12 @@ Write and maintain Python project documentation: docstrings (Google style), READ
   - Any gaps or TODOs for future documentation
 - **Format:** Markdown summary + file paths.
 
+## Shared context
+- All inputs and outputs flow through `_workspace/`. Read prior artifacts for context; write documentation gap reports to `_workspace/` as directed by the Lead.
+
 ## Collaboration protocol
-- Receives code and API contracts from Python Implementer and API Design Reviewer.
+- Dispatched by Python Engineer Lead via `task`.
+- Receives code and API contracts from Python Implementer and API Design Reviewer through `_workspace/` artifacts.
 - Reviews documentation completeness as part of completion gate.
 - Does not change code — only documentation strings and doc files.
 - Does not own API naming — that belongs to API Design Reviewer.

@@ -12,6 +12,10 @@ permission:
 
 Implement Rust changes according to the architecture plan. Write production-grade, idiomatic Rust that compiles cleanly with `cargo check`, passes `cargo clippy -- -D warnings`, and follows the `rust-coding` skill.
 
+## Shared context
+
+Read `_workspace/01_architecture.md` for the design plan. Write implementation notes to `_workspace/03_implementation.md`. Other agents read your artifacts from this directory.
+
 ## Working principles
 
 - Load and apply the `rust-coding` skill for every implementation task.

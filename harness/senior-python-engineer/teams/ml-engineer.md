@@ -35,8 +35,12 @@ Design and implement ML training pipelines: feature engineering, model architect
   - Model card (assumptions, limitations)
 - **Format:** Code + run summary + model card.
 
+## Shared context
+- All inputs and outputs flow through `_workspace/`. Write ML run summary to `_workspace/07_ml_run.md`. Read pipeline outputs and architecture docs from prior `_workspace/` artifacts.
+
 ## Collaboration protocol
-- Consumes pipeline output from Polars Data Engineer.
+- Dispatched by Python Engineer Lead via `task`.
+- Consumes pipeline output from Polars Data Engineer via `_workspace/`.
 - Hands off trained model (+ preprocessing) to MLOps Engineer for deployment.
 - Testing Engineer validates model evaluation logic.
 - Performance Engineer profiles inference latency.

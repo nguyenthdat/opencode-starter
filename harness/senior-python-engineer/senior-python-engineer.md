@@ -6,12 +6,13 @@ Production-grade Python engineering with multi-agent architecture, implementatio
 
 ## Agents
 
-**Orchestrator:** Primary agent runs `python-orchestrator` skill.
+**Lead:** Python Engineer Lead (`teams/python-engineer-lead.md`, mode: `all`) orchestrates the team, dispatches tasks to specialists via `task`, runs quality gates, and produces final summaries. Always loads `python-orchestrator` skill.
 
 **Specialists (defined in `harness/senior-python-engineer/teams/`):**
 
 | Agent | File | Responsibility |
 |---|---|---|
+| Python Engineer Lead | `teams/python-engineer-lead.md` | Team orchestration, task dispatch, quality gates, final summary |
 | Python Architect | `teams/python-architect.md` | Module design, dependency graph, error strategy, project layout |
 | Python Implementer | `teams/python-implementer.md` | Production Python code, applies `python-coding` skill |
 | Python Reviewer | `teams/python-reviewer.md` | Correctness, anti-patterns, typing, error handling review |
@@ -37,7 +38,20 @@ Production-grade Python engineering with multi-agent architecture, implementatio
 
 ## Trigger
 
-For Python development work that benefits from multi-agent workflow — new features, refactors, data pipelines, ML model development, performance optimization, packaging — load the `python-orchestrator` skill. Simple single-line fixes or questions can be answered directly.
+For Python development work that benefits from multi-agent workflow — new features, refactors, data pipelines, ML model development, performance optimization, packaging — load the `python-orchestrator` skill and dispatch via **Python Engineer Lead**. Simple single-line fixes or questions can be answered directly.
+
+## Shared context
+
+All agents share context through `_workspace/` artifacts. Each agent reads from and writes to numbered `_workspace/` files:
+- `_workspace/01_architecture.md` — Python Architect output
+- `_workspace/02_implementation.md` — Python Implementer output
+- `_workspace/03_review.md` — Python Reviewer findings
+- `_workspace/04_performance.md` — Performance report
+- `_workspace/05_api_review.md` — API review findings
+- `_workspace/06_test_summary.md` — Test results
+- `_workspace/07_ml_run.md` — ML experiment summary
+- `_workspace/08_deployment.md` — MLOps deployment docs
+- `_workspace/09_final_summary.md` — Lead final summary
 
 ## Skills
 

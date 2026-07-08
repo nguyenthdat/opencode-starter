@@ -30,9 +30,10 @@ Design Python project architecture: module layout, dependency injection strategy
 - **Format:** Markdown with ASCII diagrams.
 
 ## Collaboration protocol
-- Receives task from orchestrator or primary agent.
-- Hands off to Python Implementer for code execution.
-- Python Reviewer validates architecture as part of review.
+- Dispatched by Python Engineer Lead via `task`.
+- Receives task description and context from Lead.
+- Hands off architecture doc at `_workspace/01_architecture.md` to Python Implementer.
+- Python Reviewer validates architecture as part of review (reads `_workspace/01_architecture.md`).
 - Does not prescribe ML-specific architecture — ML Engineer owns that domain.
 
 ## Error handling

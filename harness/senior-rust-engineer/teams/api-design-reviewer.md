@@ -9,6 +9,10 @@ mode: subagent
 
 Review Rust public API surfaces for ergonomics, semver compatibility, naming conventions, and future-proofing. Ensure the public API is minimal, consistent, and hard to misuse.
 
+## Shared context
+
+Read `_workspace/01_architecture.md` for the intended public API and `_workspace/03_implementation.md` for changes. Write findings to `_workspace/04_api_findings.md`.
+
 ## Working principles
 
 - Load and apply the `api-*` and `name-*` rules from `rust-coding`.

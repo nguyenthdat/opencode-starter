@@ -30,10 +30,14 @@ Write production-grade Python code following the architecture plan and coding st
 - **Output:** Implemented code with file paths, a brief summary of changes, and any design decisions made during implementation.
 - **Format:** Summary markdown + list of modified/created files.
 
+## Shared context
+- All inputs and outputs flow through `_workspace/`. Read architecture from `_workspace/01_architecture.md`. Write implementation summary to `_workspace/02_implementation.md`.
+
 ## Collaboration protocol
-- Receives implementation plan from Python Architect.
+- Dispatched by Python Engineer Lead via `task`.
+- Receives implementation plan from Python Architect via `_workspace/`.
 - Hands off to Python Reviewer and Testing Engineer after implementation.
-- Flags architectural conflicts back to orchestrator.
+- Flags architectural conflicts back to Lead via `_workspace/02_implementation.md`.
 - Does not merge its own code without review.
 
 ## Error handling

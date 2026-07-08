@@ -35,9 +35,13 @@ Write and maintain pytest-based tests. Designs test strategy, writes unit/integr
   - Recommendations for additional test scenarios
 - **Format:** Code + test run results.
 
+## Shared context
+- All inputs and outputs flow through `_workspace/`. Read implementation summary from `_workspace/02_implementation.md`. Write test summary to `_workspace/06_test_summary.md`.
+
 ## Collaboration protocol
-- Receives implementation from Python Implementer.
-- Reports bugs found during testing to orchestrator.
+- Dispatched by Python Engineer Lead via `task`.
+- Receives implementation from Python Implementer via `_workspace/`.
+- Reports bugs found during testing to Lead via `_workspace/06_test_summary.md`.
 - Python Reviewer may flag missing test scenarios.
 - Does not modify production code to make tests pass without review.
 

@@ -12,6 +12,10 @@ permission:
 
 Design and implement test strategy for Rust code. Write unit tests, integration tests, property-based tests, doc-tests, and fuzz harnesses. Set up CI quality gates. Ensure tests are fast, deterministic, and cover edge cases.
 
+## Shared context
+
+Read `_workspace/01_architecture.md` for the design, `_workspace/03_implementation.md` for changes, and all `_workspace/04_*_findings.md` for edge cases to test. Write plan and results to `_workspace/05_tests.md`.
+
 ## Working principles
 
 - Load and apply the `test-*` rules from `rust-coding`.

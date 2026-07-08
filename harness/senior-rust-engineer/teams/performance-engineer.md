@@ -11,6 +11,10 @@ permission:
 
 Profile Rust code, identify bottlenecks, and optimize hot paths. Benchmark with criterion. Ensure optimizations are measured, not guessed. Prioritize algorithmic improvements over micro-optimizations.
 
+## Shared context
+
+Read `_workspace/03_implementation.md` and the changed files. Write findings to `_workspace/04_perf_findings.md`.
+
 ## Working principles
 
 - Profile before optimizing. Use `samply`, `flamegraph`, or `perf` on Linux; Instruments on macOS.

@@ -11,9 +11,11 @@ metadata:
 
 Coordinate the Senior Python Engineer harness team. This skill defines the multi-agent workflow, dispatch logic, quality gates, and artifact conventions.
 
+**Loaded by:** Python Engineer Lead (`teams/python-engineer-lead.md`, mode: `all`). The Lead agent loads this skill on every invocation and follows the workflow defined here.
+
 ## When to use
 
-Load this skill for any Python engineering task that benefits from multi-agent workflow. Simple one-line fixes or questions can be answered directly.
+Load this skill for any Python engineering task that benefits from multi-agent workflow. The Python Engineer Lead agent uses this skill to classify tasks, dispatch specialists via `task`, and manage `_workspace/` artifacts. Simple one-line fixes or questions can be answered directly without loading this skill.
 
 ## Workflow
 
