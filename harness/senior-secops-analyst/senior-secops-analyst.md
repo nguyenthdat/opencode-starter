@@ -202,3 +202,4 @@ Every investigation output must include:
 |---|---|---|---|
 | 2026-07-08 | Initial harness | all | — |
 | 2026-07-08 | Added workspace protocol, orchestrator pattern | all | Shared context via `_workspace/` |
+| 2026-07-09 | Expanded lead orchestration and delegation protocol | `teams/secops-lead-analyst.md` | Ensure lead routes specialist work and synthesizes evidence instead of acting as a standalone analyst |
