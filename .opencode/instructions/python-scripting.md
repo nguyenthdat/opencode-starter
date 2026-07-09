@@ -20,7 +20,7 @@ When writing or modifying Python scripts, always prefer modern, reliable tooling
 # ]
 # ///
 ```
-Library-First Policy
+## Library-First Policy
 
 Prefer well-maintained libraries instead of manually parsing or reimplementing behavior.
 
@@ -41,7 +41,7 @@ Use libraries for:
 * Retries/backoff: tenacity
 * Parallel/concurrent work: asyncio, anyio, concurrent.futures
 
-Performance
+## Performance
 
 * Prefer polars over pandas for large CSV/Parquet/dataframe workloads unless the project already standardizes on pandas.
 * Prefer orjson or msgspec for heavy JSON workloads.
@@ -51,7 +51,7 @@ Performance
 * Use async HTTP with httpx.AsyncClient for many network requests.
 * Use pathlib and typed data models for maintainability.
 
-Parsing Rules
+## Parsing Rules
 
 * Never manually parse structured formats when a parser exists.
 * Do not parse JSON/YAML/TOML/XML/HTML/CSV with regex.
@@ -59,7 +59,7 @@ Parsing Rules
 * Prefer structured command output flags like --json, --porcelain, --format, or API responses.
 * If parsing CLI output is unavoidable, isolate parsing into a small tested function.
 
-Script Quality
+## Script Quality
 
 * Scripts must have clear CLI arguments.
 * Add type hints for public functions and core data structures.
@@ -70,7 +70,7 @@ Script Quality
 * Add --dry-run for destructive or bulk changes.
 * Prefer atomic writes for generated files.
 
-Default Style
+## Default Style
 
 Write Python scripts as small, fast, maintainable tools:
 
