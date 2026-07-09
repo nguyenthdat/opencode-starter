@@ -2,113 +2,130 @@
 
 ## Goal
 
-Production-grade Python engineering with multi-agent architecture, implementation, review, testing, data engineering, ML/MLOps, and performance optimization.
+Production-grade Python engineering with multi-agent architecture, implementation, review, testing, data engineering, ML/MLOps, and performance optimization. The Lead agent orchestrates all specialist subagents through standardized dispatch, synthesis, and quality gate protocols.
 
 ## Agents
 
-**Lead:** Python Engineer Lead (`teams/python-engineer-lead.md`, mode: `all`) orchestrates the team, dispatches tasks to specialists via `task`, runs quality gates, and produces final summaries. Always loads `python-orchestrator` skill.
+**Lead:** Python Engineer Lead (`teams/python-engineer-lead.md`, mode: `all`) orchestrates the team, classifies tasks, routes to specialists via standardized call protocol, synthesizes subagent outputs, runs quality gates, and produces final recommendations with risk assessment. Always loads `python-orchestrator` skill. **Never implements or reviews directly — delegates all specialized work.**
 
 **Specialists (defined in `harness/senior-python-engineer/teams/`):**
 
-| Agent | File | Responsibility |
-|---|---|---|
-| Python Engineer Lead | `teams/python-engineer-lead.md` | Team orchestration, task dispatch, quality gates, final summary |
-| Python Architect | `teams/python-architect.md` | Module design, dependency graph, error strategy, project layout |
-| Python Implementer | `teams/python-implementer.md` | Production Python code, applies `python-coding` skill |
-| Python Reviewer | `teams/python-reviewer.md` | Correctness, anti-patterns, typing, error handling review |
-| Polars Data Engineer | `teams/polars-data-engineer.md` | Polars pipelines, lazy queries, schema enforcement, data transforms |
-| ML Engineer | `teams/ml-engineer.md` | Model training, evaluation, feature engineering, experiment tracking |
-| MLOps Engineer | `teams/mlops-engineer.md` | Model serving, deployment, monitoring, CI/CD for ML |
-| Performance Engineer | `teams/performance-engineer.md` | Profiling, benchmarking, hot-path optimization |
-| Testing Engineer | `teams/testing-engineer.md` | Test strategy, pytest, coverage, property-based testing |
-| Packaging / UV Engineer | `teams/packaging-uv-engineer.md` | pyproject.toml, build config, uv workflows, CLI entrypoints |
-| API Design Reviewer | `teams/api-design-reviewer.md` | Public API contracts, naming, consistency, backward compatibility |
-| Documentation Maintainer | `teams/documentation-maintainer.md` | Docstrings, README, module docs, API reference |
+| Agent | File | Mode | Responsibility |
+|---|---|---|---|
+| Python Engineer Lead | `teams/python-engineer-lead.md` | `all` | Orchestration, task classification, dispatch, synthesis, quality gates, final recommendation |
+| Python Architect | `teams/python-architect.md` | `subagent` | Module design, dependency graphs, error taxonomies, interface contracts, project layout |
+| Python Implementer | `teams/python-implementer.md` | `subagent` | Production Python code, applies `python-coding` skill, type hints, structured logging |
+| Python Reviewer | `teams/python-reviewer.md` | `subagent` | Correctness, typing, error handling, anti-patterns, security, async review |
+| API Design Reviewer | `teams/api-design-reviewer.md` | `subagent` | Public API contracts, naming, versioning, FastAPI patterns, backward compatibility |
+| Performance Engineer | `teams/performance-engineer.md` | `subagent` | CPU/memory/I/O profiling, benchmarking, bottleneck analysis, ranked recommendations |
+| Testing Engineer | `teams/testing-engineer.md` | `subagent` | Test strategy, pytest fixtures, coverage, property-based testing, integration tests |
+| Packaging / UV Engineer | `teams/packaging-uv-engineer.md` | `subagent` | pyproject.toml, uv workflows, dependency resolution, build config, CLI entrypoints |
+| Polars Data Engineer | `teams/polars-data-engineer.md` | `subagent` | Polars pipelines, lazy queries, schema enforcement, streaming, ETL |
+| ML Engineer | `teams/ml-engineer.md` | `subagent` | Model training, feature engineering, evaluation, experiment tracking |
+| MLOps Engineer | `teams/mlops-engineer.md` | `subagent` | Model serving, FastAPI endpoints, Docker, monitoring, drift detection, rollback |
+| Documentation Maintainer | `teams/documentation-maintainer.md` | `subagent` | Google-style docstrings, README, module docs, API reference |
 
-**Strict role boundaries:**
-- Architect designs, does not implement.
-- Implementer implements, does not approve own work.
-- Reviewer reports findings, does not modify code.
-- Polars Data Engineer owns data pipelines; ML Engineer owns model logic.
-- MLOps Engineer owns deployment; ML Engineer owns training.
-- Performance Engineer profiles and recommends; Implementer applies optimizations.
-- Testing Engineer writes tests, does not modify production code.
-- API Designer reviews contracts; Implementer implements them.
-- Docs Maintainer owns documentation quality; API Designer owns API naming.
+## Strict Role Boundaries
+
+- **Lead orchestrates, does not implement or review.** Delegates all specialized work to subagents.
+- **Architect** designs, does not implement.
+- **Implementer** implements, does not approve own work.
+- **Reviewer** reports findings, does not modify code.
+- **API Designer** reviews contracts; Implementer implements them.
+- **Performance Engineer** profiles and recommends; Implementer applies optimizations.
+- **Testing Engineer** writes tests, does not modify production code.
+- **Polars Data Engineer** owns data pipelines; ML Engineer owns model logic.
+- **ML Engineer** owns training; MLOps Engineer owns deployment.
+- **Packaging/UV Engineer** owns pyproject.toml and builds; other agents request dependencies through them.
+- **Documentation Maintainer** owns documentation quality; API Designer owns API naming.
 
 ## Trigger
 
-For Python development work that benefits from multi-agent workflow — new features, refactors, data pipelines, ML model development, performance optimization, packaging — load the `python-orchestrator` skill and dispatch via **Python Engineer Lead**. Simple single-line fixes or questions can be answered directly.
+For Python development work that benefits from multi-agent workflow — new features, refactors, data pipelines, ML model development, performance optimization, API design, packaging, security reviews, testing strategy, or documentation — load the `python-orchestrator` skill and dispatch via **Python Engineer Lead**. Simple single-line fixes or questions can be answered directly.
 
-## Shared context
+## Lead Agent Protocols
+
+The Lead agent uses three core protocols (defined in full in `teams/python-engineer-lead.md`):
+
+1. **Routing Table** — Maps every Python engineering task type to the correct primary and supporting agents.
+2. **Standard Subagent Call Protocol** — Every `task` call includes: task objective, context (files/paths/artifacts), runtime environment, constraints, expected output format, risks to check, and final recommendation requirement.
+3. **Synthesis Protocol** — Collect all subagent outputs → compare findings → resolve conflicts → identify uncertainty → produce actionable next steps with ownership → final recommendation with risk level (LOW/MEDIUM/HIGH/CRITICAL).
+
+## Shared Context (`_workspace/`)
 
 All agents share context through `_workspace/` artifacts. Each agent reads from and writes to numbered `_workspace/` files:
-- `_workspace/01_architecture.md` — Python Architect output
-- `_workspace/02_implementation.md` — Python Implementer output
-- `_workspace/03_review.md` — Python Reviewer findings
-- `_workspace/04_performance.md` — Performance report
-- `_workspace/05_api_review.md` — API review findings
-- `_workspace/06_test_summary.md` — Test results
-- `_workspace/07_ml_run.md` — ML experiment summary
-- `_workspace/08_deployment.md` — MLOps deployment docs
-- `_workspace/09_final_summary.md` — Lead final summary
+
+| Artifact | Path | Producer |
+|---|---|---|
+| Architecture document | `_workspace/01_architecture.md` | Python Architect |
+| Implementation summary | `_workspace/02_implementation.md` | Python Implementer |
+| Review findings | `_workspace/03_review.md` | Python Reviewer |
+| Performance report | `_workspace/04_performance.md` | Performance Engineer |
+| API review | `_workspace/05_api_review.md` | API Design Reviewer |
+| Test summary | `_workspace/06_test_summary.md` | Testing Engineer |
+| ML run summary | `_workspace/07_ml_run.md` | ML Engineer |
+| Deployment docs | `_workspace/08_deployment.md` | MLOps Engineer |
+| Final summary | `_workspace/09_final_summary.md` | Lead |
+| Packaging report | `_workspace/10_packaging.md` | Packaging/UV Engineer |
+| Documentation gap report | `_workspace/11_docs.md` | Documentation Maintainer |
+| Data pipeline docs | `_workspace/12_data_pipeline.md` | Polars Data Engineer |
 
 ## Skills
 
 | Skill | Location | Purpose |
 |---|---|---|
-| `python-orchestrator` | `skills/python-orchestrator/SKILL.md` | Team coordination, workflow, dispatch, quality gates |
-| `python-coding` | `skills/python-coding/SKILL.md` | Python best-practice rules across 12 categories |
-| `python-review` | `skills/python-review/SKILL.md` | Code review methodology, anti-pattern detection |
-| `polars-data` | `skills/polars-data/SKILL.md` | Polars DataFrame, lazy query, schema, pipeline patterns |
-| `ml-pipelines` | `skills/ml-pipelines/SKILL.md` | ML training, evaluation, experiment tracking patterns |
-| `mlops-deployment` | `skills/mlops-deployment/SKILL.md` | Model serving, deployment, monitoring patterns |
-| `python-performance` | `skills/python-performance/SKILL.md` | Profiling, optimization, benchmarking |
-| `python-testing` | `skills/python-testing/SKILL.md` | Pytest patterns, fixtures, coverage, property testing |
-| `uv-packaging` | `skills/uv-packaging/SKILL.md` | UV workflows, pyproject.toml, build, publish |
-| `python-api-design` | `skills/python-api-design/SKILL.md` | API contracts, FastAPI patterns, versioning |
-| `python-docs` | `skills/python-docs/SKILL.md` | Docstring standards, module docs, API reference |
+| `python-orchestrator` | `skills/python-orchestrator/SKILL.md` | Team coordination, dispatch protocol, synthesis, quality gates, agent launch templates |
+| `python-coding` | `skills/python-coding/SKILL.md` | Python best-practice rules across 12 categories (44 rule files) |
+| `python-review` | `skills/python-review/SKILL.md` | Code review methodology: correctness, typing, error handling, anti-patterns, security |
+| `python-api-design` | `skills/python-api-design/SKILL.md` | Internal + HTTP API contracts, FastAPI patterns, versioning, backward compatibility |
+| `python-performance` | `skills/python-performance/SKILL.md` | Profiling tools, CPU/memory optimization, benchmarking, Polars query tuning |
+| `python-testing` | `skills/python-testing/SKILL.md` | Pytest patterns, fixtures, parametrize, coverage, hypothesis property-based testing |
+| `uv-packaging` | `skills/uv-packaging/SKILL.md` | UV workflows, pyproject.toml, dependency resolution, build/publish, CLI entrypoints |
+| `polars-data` | `skills/polars-data/SKILL.md` | Polars DataFrame, lazy query, schema, pipeline patterns, streaming |
+| `ml-pipelines` | `skills/ml-pipelines/SKILL.md` | ML training, evaluation, experiment tracking, reproducibility patterns |
+| `mlops-deployment` | `skills/mlops-deployment/SKILL.md` | Model serving, FastAPI, Docker, monitoring, drift detection, rollback |
+| `python-docs` | `skills/python-docs/SKILL.md` | Google-style docstrings, module docs, README, API reference generation |
 
-## Default workflow
+## Python Standards
 
-1. Understand the task and inspect the existing codebase.
-2. Identify the domain: app/dev, data engineering, ML, MLOps, performance, testing, packaging, or docs.
-3. Route to the right focused agents.
-4. Produce a concise implementation plan.
-5. Implement with production-grade Python.
-6. Review for correctness, typing, performance, reliability, and maintainability.
-7. Add or update tests.
-8. Run or recommend checks: `uv run ruff check`, `uv run pytest`, `uv run pyright`.
-9. Produce a final summary with changes, risks, tradeoffs, and next steps.
-
-## Python standards
-
+### Tooling
 - Python 3.11+
-- `uv` over pip/poetry/conda unless the project already requires otherwise
-- `pyproject.toml` for all config
-- `ruff` for lint and format
-- `pytest` for tests
+- `uv` for all dependency, venv, build, and run operations (no pip/poetry/conda unless pre-existing)
+- `pyproject.toml` as single source of truth for project config, dependencies, and tool settings
+- `ruff` for linting (`ruff check`) and formatting (`ruff format --check`)
 - `pyright` or `mypy` for static type checking
-- Polars over pandas for new data-heavy code
-- Lazy Polars queries for large datasets
-- Explicit schemas for data pipelines
-- Structured logging (`structlog` or `logging` with JSON format)
-- Clear, typed error handling
-- Reproducible ML experiments
-- Production-ready ML serving patterns
+- `pytest` for testing
+- `hatchling` as default build backend
 
-## Completion gate
+### Code Quality
+- Type hints on all public APIs and non-trivial internal logic; no `Any` without justification
+- Well-maintained libraries over fragile custom parsers (httpx, pydantic, structlog, polars)
+- Idempotent, observable scripts safe to rerun; `--dry-run` for destructive operations
+- Atomic file writes for generated files
+- Structured logging (`structlog` or `logging` JSON format); no `print()` in production
+- Custom exception hierarchy per module
+- No ad-hoc dependency installs — everything in `pyproject.toml` with version bounds
 
-- `uv run ruff check` passes with no errors.
-- `uv run ruff format --check` passes.
-- `uv run pyright` (or `uv run mypy`) passes.
-- `uv run pytest` passes.
-- No unresolved BLOCKER review findings.
-- All public functions, classes, and modules have docstrings.
-- Architecture, implementation notes, review findings, and test results preserved in `_workspace/`.
+### Verification
+- Every code change must pass: `ruff check`, `ruff format --check`, `pyright`, `pytest`
+- Every new module must have a corresponding test file
+- Every public function/class must have a Google-style docstring
+- `_workspace/` artifacts must capture all changes and decisions
 
-## Change history
+## Completion Gate
+
+- `uv run ruff check` passes with no errors
+- `uv run ruff format --check` passes
+- `uv run pyright` (or `uv run mypy`) passes
+- `uv run pytest` passes
+- No unresolved BLOCKER review findings
+- All public functions, classes, and modules have docstrings
+- Architecture, implementation notes, review findings, test results, and final recommendation preserved in `_workspace/`
+- Final recommendation includes risk level (LOW/MEDIUM/HIGH/CRITICAL)
+
+## Change History
 
 | Date | Change | Target | Reason |
 |---|---|---|---|
-| 2026-07-08 | Initial harness | all | - |
+| 2026-07-08 | Initial harness | all | — |
+| 2026-07-09 | Optimize Lead agent | `teams/python-engineer-lead.md`, `skills/python-orchestrator/SKILL.md` | Lead now acts as true orchestrator with routing table, call protocol, synthesis protocol, delegation rules, and Python execution rules |
