@@ -19,3 +19,6 @@
 [submodule ".opencode/vendor/windmill-skills"]
 	path = .opencode/vendor/windmill-skills
 	url = https://github.com/windmill-labs/windmill-cli-docs.git
+[submodule ".opencode/vendor/engineers-skills"]
+	path = .opencode/vendor/engineers-skills
+	url = https://github.com/mattpocock/skills.git

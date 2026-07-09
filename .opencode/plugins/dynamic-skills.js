@@ -1,5 +1,11 @@
-import { readFileSync, existsSync, readdirSync, statSync, realpathSync } from "node:fs";
-import { join, resolve, dirname, basename, relative, isAbsolute, normalize } from "node:path";
+import {
+  readFileSync,
+  existsSync,
+  readdirSync,
+  statSync,
+  realpathSync,
+} from "node:fs";
+import { join, resolve, basename, isAbsolute, normalize } from "node:path";
 import { homedir } from "node:os";
 import { tool } from "@opencode-ai/plugin";
 
@@ -15,7 +21,7 @@ let config = null;
 let configMtime = 0;
 
 // ---------------------------------------------------------------------------
-// Config
+// Constants
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CONFIG = {
@@ -26,18 +32,15 @@ const DEFAULT_CONFIG = {
   maxSkillFileSize: 1_048_576, // 1 MiB
 };
 
-function findConfigFile(root) {
-  const candidates = [
-    join(root, ".opencode", "dynamic-skills.jsonc"),
-    join(root, ".opencode", "dynamic-skills.json"),
-  ];
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
-  }
-  return null;
-}
+// Max bytes to read for frontmatter-only parsing during discovery.
+// Frontmatter is typically < 2 KB; 64 KB is generous headroom.
+const FRONTMATTER_READ_LIMIT = 65536;
 
-function stripJsonComments(raw) {
+// ---------------------------------------------------------------------------
+// JSONC parser (handles comments + trailing commas)
+// ---------------------------------------------------------------------------
+
+function stripJsonc(raw) {
   let result = "";
   let inString = false;
   let inSingleLineComment = false;
@@ -55,7 +58,6 @@ function stripJsonComments(raw) {
       }
       continue;
     }
-
     if (inMultiLineComment) {
       if (ch === "*" && next === "/") {
         inMultiLineComment = false;
@@ -63,39 +65,66 @@ function stripJsonComments(raw) {
       }
       continue;
     }
-
     if (inString) {
       result += ch;
       if (ch === "\\") {
-        if (next) { result += next; i++; }
+        if (next) {
+          result += next;
+          i++;
+        }
       } else if (ch === stringDelim) {
         inString = false;
         stringDelim = null;
       }
       continue;
     }
-
     if (ch === "/" && next === "/") {
       inSingleLineComment = true;
       i++;
       continue;
     }
-
     if (ch === "/" && next === "*") {
       inMultiLineComment = true;
       i++;
       continue;
     }
-
     if (ch === '"' || ch === "'") {
       inString = true;
       stringDelim = ch;
     }
-
     result += ch;
   }
-
   return result;
+}
+
+function stripTrailingCommas(json) {
+  // Remove trailing commas before ] or } — handles the most common JSONC extension
+  return json.replace(/,(\s*[}\]])/g, "$1");
+}
+
+function parseJsonc(raw) {
+  const stripped = stripJsonc(raw);
+  const clean = stripTrailingCommas(stripped);
+  try {
+    return JSON.parse(clean);
+  } catch (e) {
+    throw new Error(`Invalid JSONC: ${e.message}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+function findConfigFile(root) {
+  const candidates = [
+    join(root, ".opencode", "dynamic-skills.jsonc"),
+    join(root, ".opencode", "dynamic-skills.json"),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return null;
 }
 
 function loadConfig(context) {
@@ -121,44 +150,72 @@ function loadConfig(context) {
   }
 
   const raw = readFileSync(candidate, "utf-8");
-  const stripped = stripJsonComments(raw);
-  const parsed = JSON.parse(stripped);
+  let parsed;
+  try {
+    parsed = parseJsonc(raw);
+  } catch (e) {
+    // On parse failure, warn via console but don't crash — fall back to defaults
+    configPath = null;
+    config = { ...DEFAULT_CONFIG, _parseError: e.message };
+    return config;
+  }
 
   configPath = candidate;
   config = {
-    searchPaths: parsed.searchPaths || DEFAULT_CONFIG.searchPaths,
-    cacheTTL: parsed.cacheTTL ?? DEFAULT_CONFIG.cacheTTL,
-    allowAbsolutePaths: parsed.allowAbsolutePaths ?? DEFAULT_CONFIG.allowAbsolutePaths,
-    debug: parsed.debug ?? DEFAULT_CONFIG.debug,
-    maxSkillFileSize: parsed.maxSkillFileSize ?? DEFAULT_CONFIG.maxSkillFileSize,
+    searchPaths: Array.isArray(parsed.searchPaths)
+      ? parsed.searchPaths
+      : DEFAULT_CONFIG.searchPaths,
+    cacheTTL:
+      typeof parsed.cacheTTL === "number"
+        ? parsed.cacheTTL
+        : DEFAULT_CONFIG.cacheTTL,
+    allowAbsolutePaths:
+      typeof parsed.allowAbsolutePaths === "boolean"
+        ? parsed.allowAbsolutePaths
+        : DEFAULT_CONFIG.allowAbsolutePaths,
+    debug:
+      typeof parsed.debug === "boolean" ? parsed.debug : DEFAULT_CONFIG.debug,
+    maxSkillFileSize:
+      typeof parsed.maxSkillFileSize === "number"
+        ? parsed.maxSkillFileSize
+        : DEFAULT_CONFIG.maxSkillFileSize,
   };
   return config;
+}
+
+function shouldDebug(args, context) {
+  if (args?.debug === true) return true;
+  const cfg = loadConfig(context);
+  return cfg.debug === true;
 }
 
 // ---------------------------------------------------------------------------
 // Path expansion
 // ---------------------------------------------------------------------------
 
+function escapeRegex(str) {
+  return str.replace(/[.+?^${}()|[\]\\*]/g, "\\$&");
+}
+
 function expandPath(pattern, root, allowAbsolute) {
-  // Home directory
   if (pattern.startsWith("~/")) {
     pattern = join(homedir(), pattern.slice(2));
   }
 
-  // Absolute paths
   if (isAbsolute(pattern)) {
     if (!allowAbsolute) return [];
     if (existsSync(pattern)) {
-      const r = realpathSync(pattern);
-      return [r];
+      try {
+        return [realpathSync(pattern)];
+      } catch {
+        return [pattern];
+      }
     }
     return [];
   }
 
-  // Resolve relative path
   const resolved = resolve(root, pattern);
 
-  // Glob expansion for single-level wildcards like harness/*/skills
   if (pattern.includes("*")) {
     return expandGlob(pattern, root);
   }
@@ -184,14 +241,14 @@ function expandGlob(pattern, root) {
 
   const baseParts = parts.slice(0, globIdx);
   const base = resolve(root, ...baseParts);
-
   if (!existsSync(base)) return [];
 
   const globPart = parts[globIdx];
   const suffix = parts.slice(globIdx + 1).join("/");
-  const regex = new RegExp(
-    "^" + globPart.replace(/\*/g, "([^/]+)") + "$"
-  );
+
+  // Split on literal *, escape each fragment, join with capture group
+  const frags = globPart.split("*").map(escapeRegex);
+  const regex = new RegExp("^" + frags.join("([^/]+)") + "$");
 
   const results = [];
   let entries;
@@ -218,6 +275,53 @@ function expandGlob(pattern, root) {
 }
 
 // ---------------------------------------------------------------------------
+// Collect all configured roots (for path-traversal guard)
+// ---------------------------------------------------------------------------
+
+function collectConfigRoots(context) {
+  const root = context?.directory || process.cwd();
+  const cfg = loadConfig(context);
+  const roots = new Set();
+  roots.add(resolve(root)); // project root always allowed
+
+  for (const pattern of cfg.searchPaths) {
+    const paths = expandPath(pattern, root, cfg.allowAbsolutePaths);
+    for (const p of paths) {
+      try {
+        roots.add(realpathSync(p));
+      } catch {
+        roots.add(resolve(p));
+      }
+    }
+  }
+  return Array.from(roots);
+}
+
+function isWithinRoots(target, roots) {
+  let normalized;
+  try {
+    normalized = realpathSync(target);
+  } catch {
+    normalized = resolve(target);
+  }
+  normalized = normalize(normalized);
+
+  for (const r of roots) {
+    let nr;
+    try {
+      nr = realpathSync(r);
+    } catch {
+      nr = resolve(r);
+    }
+    nr = normalize(nr);
+    if (normalized === nr || normalized.startsWith(nr + "/")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
 // Skill discovery
 // ---------------------------------------------------------------------------
 
@@ -229,7 +333,6 @@ function findSkillDirs(searchPath) {
   } catch {
     return results;
   }
-
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith(".")) continue;
@@ -241,66 +344,115 @@ function findSkillDirs(searchPath) {
   return results;
 }
 
-function parseSkillMeta(skillMdPath) {
+// ---------------------------------------------------------------------------
+// YAML frontmatter parser (handles block scalars: >, >-, |, |-)
+// ---------------------------------------------------------------------------
+
+function parseSkillMeta(skillMdPath, sizeLimit = FRONTMATTER_READ_LIMIT) {
   try {
-    const content = readFileSync(skillMdPath, "utf-8");
+    const fd = readFileSync(skillMdPath, "utf-8");
+    const content = fd.length > sizeLimit ? fd.slice(0, sizeLimit) : fd;
+
     const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!match) return { description: "" };
 
     const frontmatter = match[1];
+    const lines = frontmatter.split("\n");
     const meta = {};
-    let currentKey = null;
-    let currentIndent = 0;
 
-    for (const rawLine of frontmatter.split("\n")) {
-      const line = rawLine.trimEnd();
-      if (line.trim() === "") continue;
+    for (let i = 0; i < lines.length; i++) {
+      const rawLine = lines[i];
+      if (rawLine.trim() === "") continue;
 
-      const indent = line.search(/\S/);
-      const kv = line.match(/^(\w[\w-]*):\s*(.*)$/);
-      
-      if (kv) {
-        const key = kv[1];
-        let value = kv[2].trim();
+      const indent = rawLine.search(/\S/);
+      const kv = rawLine.match(/^(\w[\w-]*):\s*(.*)$/);
 
-        if ((value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))) {
-          value = value.slice(1, -1);
+      if (!kv) continue;
+
+      const key = kv[1];
+      let rawValue = kv[2];
+
+      // Block scalar indicators: >, >-, >+, |, |-, |+
+      const blockMatch = rawValue.match(/^\s*(>[+-]?|\|[+-]?)\s*$/);
+      if (blockMatch) {
+        const style = blockMatch[1];
+        const isLiteral = style[0] === "|"; // | = preserve newlines
+        const chomp = style[1] || ""; // "" = clip, "-" = strip, "+" = keep
+        const parts = [];
+
+        // Collect continuation lines (indented more than the key line)
+        for (let j = i + 1; j < lines.length; j++) {
+          const contLine = lines[j];
+          if (contLine.trim() === "") {
+            if (!isLiteral) parts.push("\n\n");
+            else parts.push("");
+            continue;
+          }
+          const contIndent = contLine.search(/\S/);
+          if (contIndent <= indent) break;
+          parts.push(contLine.trim());
+          i = j;
         }
 
-        if (value.startsWith("[") && value.endsWith("]")) {
-          try {
-            value = JSON.parse(value);
-          } catch {
-            // YAML flow array: [rust, coding, "quoted value"]
-            const inner = value.slice(1, -1).trim();
-            if (inner === "") {
-              value = [];
-            } else {
-              value = inner.split(",").map((s) => {
-                let t = s.trim();
-                if ((t.startsWith('"') && t.endsWith('"')) ||
-                    (t.startsWith("'") && t.endsWith("'"))) {
-                  t = t.slice(1, -1);
-                }
-                return t;
-              });
-            }
-          }
-        }
+        let joined = parts.join(isLiteral ? "\n" : " ");
+        if (chomp === "-") joined = joined.replace(/\n+$/, "");
+        else if (chomp === "") joined = joined.replace(/\n$/, "");
 
-        if (indent === 0) {
-          meta[key] = value;
-          currentKey = key;
-          currentIndent = indent;
-        } else if (currentKey && indent > currentIndent) {
-          // nested key under parent
-          if (typeof meta[currentKey] !== "object" || Array.isArray(meta[currentKey])) {
-            meta[currentKey] = {};
+        meta[key] = joined;
+        continue;
+      }
+
+      // Indented plain scalar: key:\n  value across indented lines
+      if (rawValue.trim() === "") {
+        const parts = [];
+        for (let j = i + 1; j < lines.length; j++) {
+          const contLine = lines[j];
+          if (contLine.trim() === "") break;
+          const contIndent = contLine.search(/\S/);
+          if (contIndent <= indent) break;
+          parts.push(contLine.trim());
+          i = j;
+        }
+        if (parts.length > 0) {
+          meta[key] = parts.join(" ");
+          continue;
+        }
+        // Empty value — skip (handled below as "")
+      }
+
+      // Normal scalar value
+      let value = rawValue.trim();
+
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      if (value.startsWith("[") && value.endsWith("]")) {
+        try {
+          value = JSON.parse(value);
+        } catch {
+          const inner = value.slice(1, -1).trim();
+          if (inner === "") {
+            value = [];
+          } else {
+            value = inner.split(",").map((s) => {
+              let t = s.trim();
+              if (
+                (t.startsWith('"') && t.endsWith('"')) ||
+                (t.startsWith("'") && t.endsWith("'"))
+              ) {
+                t = t.slice(1, -1);
+              }
+              return t;
+            });
           }
-          meta[currentKey][key] = value;
         }
       }
+
+      meta[key] = value;
     }
 
     return meta;
@@ -309,8 +461,15 @@ function parseSkillMeta(skillMdPath) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Source classification
+// ---------------------------------------------------------------------------
+
 function classifySource(searchPath) {
-  if (searchPath.includes("/.opencode/skills") && !searchPath.includes("/vendor/")) {
+  if (
+    searchPath.includes("/.opencode/skills") &&
+    !searchPath.includes("/vendor/")
+  ) {
     return { source: "local", priority: 0 };
   }
   if (searchPath.includes("/harness/")) {
@@ -324,18 +483,23 @@ function classifySource(searchPath) {
   return { source: "global", priority: 30 };
 }
 
+// ---------------------------------------------------------------------------
+// Discovery
+// ---------------------------------------------------------------------------
+
 function discoverSkills(context, debug) {
   const root = context?.directory || process.cwd();
   const cfg = loadConfig(context);
   const logs = [];
 
   if (debug) {
-    logs.push(`--- Discovery Start ---`);
+    logs.push("--- Discovery Start ---");
     logs.push(`config: ${configPath || "(defaults)"}`);
     logs.push(`searchPaths: ${JSON.stringify(cfg.searchPaths)}`);
   }
 
   const allSkills = new Map();
+  const duplicateNames = new Map(); // name -> array of { source, path }
   let totalFound = 0;
   let totalConflicts = 0;
 
@@ -346,7 +510,9 @@ function discoverSkills(context, debug) {
       if (paths.length === 0) {
         logs.push(`  SKIP ${pattern} → no matching directories`);
       } else {
-        logs.push(`  SCAN ${pattern} → ${paths.length} director${paths.length === 1 ? "y" : "ies"}`);
+        logs.push(
+          `  SCAN ${pattern} → ${paths.length} director${paths.length === 1 ? "y" : "ies"}`,
+        );
       }
     }
 
@@ -371,6 +537,10 @@ function discoverSkills(context, debug) {
           priority,
         };
 
+        // Track all occurrences for duplicate reporting
+        if (!duplicateNames.has(name)) duplicateNames.set(name, []);
+        duplicateNames.get(name).push({ source, path: skillDir, priority });
+
         const existing = allSkills.get(name);
         if (existing) {
           totalConflicts++;
@@ -378,16 +548,16 @@ function discoverSkills(context, debug) {
             if (debug) {
               logs.push(
                 `    CONFLICT: "${name}" → chose ${source}/${team || "?"} ` +
-                `(priority ${priority}) over ${existing.source}/${existing.team || "?"} ` +
-                `(priority ${existing.priority})`
+                  `(priority ${priority}) over ${existing.source}/${existing.team || "?"} ` +
+                  `(priority ${existing.priority})`,
               );
             }
             allSkills.set(name, entry);
           } else if (debug) {
             logs.push(
               `    CONFLICT: "${name}" → kept ${existing.source}/${existing.team || "?"} ` +
-              `(priority ${existing.priority}) over ${source}/${team || "?"} ` +
-              `(priority ${priority})`
+                `(priority ${existing.priority}) over ${source}/${team || "?"} ` +
+                `(priority ${priority})`,
             );
           }
         } else {
@@ -403,11 +573,11 @@ function discoverSkills(context, debug) {
   if (debug) {
     logs.push(
       `--- Discovery Complete: ${allSkills.size} skills, ` +
-      `${totalFound} found, ${totalConflicts} conflicts resolved ---`
+        `${totalFound} found, ${totalConflicts} conflicts resolved ---`,
     );
   }
 
-  return { skills: allSkills, logs };
+  return { skills: allSkills, logs, duplicateNames };
 }
 
 // ---------------------------------------------------------------------------
@@ -420,14 +590,19 @@ function getCachedSkills(context, debug) {
   const now = Date.now();
 
   if (cache && now - cacheTimestamp < ttl) {
-    if (debug) cache.logs.push("(using cached results)");
-    return cache;
+    // Return a copy so caller can't mutate the cached logs
+    const result = { ...cache };
+    if (debug) {
+      result.logs = [...(cache.logs || []), "(using cached results)"];
+    }
+    return result;
   }
 
   const result = discoverSkills(context, debug);
   cache = result;
   cacheTimestamp = now;
-  return result;
+  // Return a fresh copy so caller sees the correct logs
+  return { ...result, logs: debug ? [...(result.logs || [])] : result.logs };
 }
 
 // ---------------------------------------------------------------------------
@@ -447,7 +622,17 @@ function formatSkillEntry(s) {
 
 function resolveSkill(args, skills, context) {
   if (args.path) {
-    const resolved = resolve(context?.directory || process.cwd(), args.path);
+    const cwd = context?.directory || process.cwd();
+    const resolved = resolve(cwd, args.path);
+
+    // Security: check that resolved path is within configured roots
+    const roots = collectConfigRoots(context);
+    if (!isWithinRoots(resolved, roots)) {
+      return {
+        error: `Path "${args.path}" resolves outside configured skill roots: ${resolved}`,
+      };
+    }
+
     const skillMd = join(resolved, "SKILL.md");
     if (!existsSync(skillMd)) {
       return { error: `No SKILL.md found at ${resolved}` };
@@ -475,21 +660,6 @@ function resolveSkill(args, skills, context) {
 }
 
 // ---------------------------------------------------------------------------
-// Path traversal guard
-// ---------------------------------------------------------------------------
-
-function isWithinRoots(target, roots) {
-  const normalized = normalize(resolve(target));
-  for (const r of roots) {
-    const nr = normalize(resolve(r));
-    if (normalized.startsWith(nr + "/") || normalized === nr) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
 
@@ -505,18 +675,15 @@ export const DynamicSkillsPlugin = async () => ({
         debug: schema
           .boolean()
           .optional()
-          .default(false)
           .describe("Enable debug output showing discovery scan details."),
       },
       async execute(args, context) {
-        const { skills, logs } = getCachedSkills(context, args.debug);
+        const debug = shouldDebug(args, context);
+        const { skills, logs } = getCachedSkills(context, debug);
         const result = Array.from(skills.values()).map(formatSkillEntry);
 
-        const output = {
-          skills: result,
-          count: result.length,
-        };
-        if (args.debug) output.debug = logs;
+        const output = { skills: result, count: result.length };
+        if (debug) output.debug = logs;
 
         return {
           title: `Skills List (${result.length})`,
@@ -536,32 +703,33 @@ export const DynamicSkillsPlugin = async () => ({
         query: schema
           .string()
           .optional()
-          .describe("Free-text search against skill name, description, and tags."),
-        team: schema.string().optional().describe("Filter by harness team name."),
+          .describe(
+            "Free-text search against skill name, description, and tags.",
+          ),
+        team: schema
+          .string()
+          .optional()
+          .describe("Filter by harness team name."),
         source: schema
           .string()
           .optional()
           .describe("Filter by source: local, harness, vendor, global."),
         tag: schema.string().optional().describe("Filter by tag."),
-        debug: schema
-          .boolean()
-          .optional()
-          .default(false)
-          .describe("Enable debug output."),
+        debug: schema.boolean().optional().describe("Enable debug output."),
       },
       async execute(args, context) {
-        const { skills, logs } = getCachedSkills(context, args.debug);
+        const debug = shouldDebug(args, context);
+        const { skills, logs } = getCachedSkills(context, debug);
         let results = Array.from(skills.values());
 
-        if (args.team) {
-          results = results.filter((s) => s.team === args.team);
-        }
-        if (args.source) {
+        if (args.team) results = results.filter((s) => s.team === args.team);
+        if (args.source)
           results = results.filter((s) => s.source === args.source);
-        }
         if (args.tag) {
           results = results.filter(
-            (s) => s.tags && s.tags.some((t) => t.toLowerCase() === args.tag.toLowerCase())
+            (s) =>
+              s.tags &&
+              s.tags.some((t) => t.toLowerCase() === args.tag.toLowerCase()),
           );
         }
         if (args.query) {
@@ -571,7 +739,7 @@ export const DynamicSkillsPlugin = async () => ({
               s.name.toLowerCase().includes(q) ||
               s.description.toLowerCase().includes(q) ||
               (s.tags && s.tags.some((t) => t.toLowerCase().includes(q))) ||
-              (s.team && s.team.toLowerCase().includes(q))
+              (s.team && s.team.toLowerCase().includes(q)),
           );
         }
 
@@ -579,7 +747,7 @@ export const DynamicSkillsPlugin = async () => ({
           skills: results.map(formatSkillEntry),
           count: results.length,
         };
-        if (args.debug) output.debug = logs;
+        if (debug) output.debug = logs;
 
         return {
           title: `Skills Find (${results.length} match${results.length === 1 ? "" : "es"})`,
@@ -600,16 +768,14 @@ export const DynamicSkillsPlugin = async () => ({
         path: schema
           .string()
           .optional()
-          .describe("Explicit path to a skill directory (bypasses name-based discovery)."),
-        debug: schema
-          .boolean()
-          .optional()
-          .default(false)
-          .describe("Enable debug output."),
+          .describe(
+            "Explicit path to a skill directory (must be within configured roots).",
+          ),
+        debug: schema.boolean().optional().describe("Enable debug output."),
       },
       async execute(args, context) {
-        const { skills, logs } = getCachedSkills(context, args.debug);
-        const root = context?.directory || process.cwd();
+        const debug = shouldDebug(args, context);
+        const { skills, logs } = getCachedSkills(context, debug);
 
         const skill = resolveSkill(args, skills, context);
         if (skill.error) {
@@ -620,7 +786,6 @@ export const DynamicSkillsPlugin = async () => ({
           };
         }
 
-        // Read skill content
         let content;
         try {
           const cfg = loadConfig(context);
@@ -628,10 +793,14 @@ export const DynamicSkillsPlugin = async () => ({
           if (st.size > cfg.maxSkillFileSize) {
             return {
               title: "Skills Load Failed",
-              output: JSON.stringify({
-                error: `SKILL.md too large (${st.size} bytes, max ${cfg.maxSkillFileSize})`,
-                path: skill.skillMd,
-              }, null, 2),
+              output: JSON.stringify(
+                {
+                  error: `SKILL.md too large (${st.size} bytes, max ${cfg.maxSkillFileSize})`,
+                  path: skill.skillMd,
+                },
+                null,
+                2,
+              ),
               metadata: { error: true },
             };
           }
@@ -639,15 +808,19 @@ export const DynamicSkillsPlugin = async () => ({
         } catch (e) {
           return {
             title: "Skills Load Failed",
-            output: JSON.stringify({
-              error: `Cannot read skill file: ${e.message}`,
-              path: skill.skillMd,
-            }, null, 2),
+            output: JSON.stringify(
+              {
+                error: `Cannot read skill file: ${e.message}`,
+                path: skill.skillMd,
+              },
+              null,
+              2,
+            ),
             metadata: { error: true },
           };
         }
 
-        if (args.debug) {
+        if (debug) {
           logs.push(`Loaded: ${skill.name} from ${skill.skillMd}`);
           logs.push(`Source: ${skill.source}, Team: ${skill.team || "N/A"}`);
         }
@@ -659,7 +832,7 @@ export const DynamicSkillsPlugin = async () => ({
           path: skill.path,
           content,
         };
-        if (args.debug) output.debug = logs;
+        if (debug) output.debug = logs;
 
         return {
           title: `Skill: ${skill.name}`,
@@ -680,27 +853,22 @@ export const DynamicSkillsPlugin = async () => ({
       description:
         "Force a full re-scan of all configured skill search paths. Clears the cache and re-discovers all skills. Use this after adding, removing, or modifying skill files to ensure the agent sees the latest skills.",
       args: {
-        debug: schema
-          .boolean()
-          .optional()
-          .default(false)
-          .describe("Enable debug output."),
+        debug: schema.boolean().optional().describe("Enable debug output."),
       },
       async execute(args, context) {
         cache = null;
         cacheTimestamp = 0;
         config = null;
         configMtime = 0;
-        const { skills, logs } = getCachedSkills(context, args.debug);
+        const debug = shouldDebug(args, context);
+        const { skills, logs } = getCachedSkills(context, debug);
 
-        const names = Array.from(skills.values()).map((s) => s.name).sort();
+        const names = Array.from(skills.values())
+          .map((s) => s.name)
+          .sort();
 
-        const output = {
-          refreshed: true,
-          count: skills.size,
-          skills: names,
-        };
-        if (args.debug) output.debug = logs;
+        const output = { refreshed: true, count: skills.size, skills: names };
+        if (debug) output.debug = logs;
 
         return {
           title: `Skills Refresh (${skills.size} skills)`,
@@ -715,7 +883,7 @@ export const DynamicSkillsPlugin = async () => ({
     // -----------------------------------------------------------------------
     skills_doctor: tool({
       description:
-        "Diagnose skill configuration and validate all skill files. Checks for: missing config, unreadable files, missing SKILL.md, invalid search paths, and duplicate skill names. Always runs with verbose output.",
+        "Diagnose skill configuration and validate all skill files. Checks for: missing config, unreadable files, missing SKILL.md, invalid search paths, duplicate skill names, and config parse errors. Always runs with verbose output.",
       args: {
         debug: schema
           .boolean()
@@ -735,6 +903,15 @@ export const DynamicSkillsPlugin = async () => ({
         info.push(`project root: ${root}`);
         info.push(`config file: ${configPath || "(using defaults)"}`);
 
+        // Report config parse error
+        if (cfg._parseError) {
+          issues.push({
+            severity: "error",
+            message: `Config parse error: ${cfg._parseError}. Using defaults.`,
+          });
+          fail++;
+        }
+
         // Validate each search path
         for (const pattern of cfg.searchPaths) {
           const paths = expandPath(pattern, root, cfg.allowAbsolutePaths);
@@ -748,7 +925,9 @@ export const DynamicSkillsPlugin = async () => ({
             continue;
           }
 
-          info.push(`"${pattern}" → ${paths.length} director${paths.length === 1 ? "y" : "ies"}`);
+          info.push(
+            `"${pattern}" → ${paths.length} director${paths.length === 1 ? "y" : "ies"}`,
+          );
 
           for (const searchPath of paths) {
             let entries;
@@ -771,15 +950,11 @@ export const DynamicSkillsPlugin = async () => ({
               const skillDir = join(searchPath, entry.name);
               const skillMd = join(skillDir, "SKILL.md");
 
-              if (!existsSync(skillMd)) {
-                // Not a skill directory — skip silently
-                continue;
-              }
+              if (!existsSync(skillMd)) continue;
 
               try {
-                const content = readFileSync(skillMd, "utf-8");
+                readFileSync(skillMd, "utf-8"); // readability check
                 const meta = parseSkillMeta(skillMd);
-                const name = meta.name || entry.name;
 
                 if (!meta.name) {
                   warnings.push({
@@ -792,14 +967,6 @@ export const DynamicSkillsPlugin = async () => ({
                   warnings.push({
                     path: skillDir,
                     message: `SKILL.md missing "description" in frontmatter`,
-                  });
-                }
-
-                // Check for path traversal in content
-                if (content.includes("../") && content.includes("SKILL.md")) {
-                  warnings.push({
-                    path: skillDir,
-                    message: "SKILL.md may contain relative path references",
                   });
                 }
 
@@ -816,9 +983,33 @@ export const DynamicSkillsPlugin = async () => ({
           }
         }
 
-        // Check for duplicate names
-        const { skills: allSkills } = discoverSkills(context, false);
-        info.push(`total unique skills after conflict resolution: ${allSkills.size}`);
+        // Check for duplicate names (before conflict resolution)
+        const { skills: allSkills, duplicateNames } = discoverSkills(
+          context,
+          false,
+        );
+        info.push(`total skills after conflict resolution: ${allSkills.size}`);
+
+        let totalDuplicates = 0;
+        for (const [name, occurrences] of duplicateNames) {
+          if (occurrences.length > 1) {
+            totalDuplicates++;
+            warnings.push({
+              message: `Duplicate skill name "${name}" found in ${occurrences.length} locations`,
+              occurrences: occurrences.map((o) => ({
+                source: o.source,
+                path: o.path,
+                priority: o.priority,
+                selected: allSkills.get(name)?.path === o.path,
+              })),
+            });
+          }
+        }
+        if (totalDuplicates > 0) {
+          info.push(
+            `${totalDuplicates} duplicate skill name${totalDuplicates === 1 ? "" : "s"} found (resolved by priority)`,
+          );
+        }
 
         const status = issues.length === 0 ? "healthy" : "issues_found";
 
