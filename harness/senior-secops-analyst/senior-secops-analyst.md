@@ -93,7 +93,7 @@ _workspace/
 | `evidence-collection` | `skills/evidence-collection/SKILL.md` | Evidence collection and chain-of-reasoning |
 | `verdict-scoring` | `skills/verdict-scoring/SKILL.md` | Verdict, severity, confidence scoring |
 | `actions-hardening` | `skills/actions-hardening/SKILL.md` | Recommended actions and control hardening |
-| `docx-reporting` | `skills/docx-reporting/SKILL.md` | DOCX report generation from template |
+| `docx` | `skills/docx/SKILL.md` | DOCX report generation from template |
 | `evidence-extraction` | `skills/evidence-extraction/SKILL.md` | PDF/DOCX evidence extraction |
 
 ## Scope

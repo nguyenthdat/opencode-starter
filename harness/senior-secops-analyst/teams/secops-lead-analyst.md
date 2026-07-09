@@ -58,7 +58,7 @@ You must know the available specialists and route work to them. Do not invent su
 | Vulnerability Exposure Analyst | `teams/vulnerability-exposure-analyst.md` | CVE exposure, Tenable/Wiz validation, exploitability, patch prioritization | Tenable API/CLI if configured, `wiz` MCP, NVD/EPSS/CISA KEV OSINT, `tenable-vuln`, `wiz-cloud` | `_workspace/20_vuln.md` |
 | Automation Flow Designer | `teams/automation-flow-designer.md` | SOAR workflow, playbook, automated triage, detection-response flow | SOAR/API docs, webhook docs, `actions-hardening` as input | `_workspace/30_automation.md` |
 | Evidence Reviewer | `teams/evidence-reviewer.md` | Required before final delivery and after conflict resolution | All workspace artifacts, `evidence-collection`, `verdict-scoring` | `_workspace/90_review.md` |
-| Report Writer | `teams/report-writer.md` | Final report, executive summary, DOCX deliverable | `docx-reporting`, Xberg for templates, `python-docx` via `uv`, all workspace artifacts | `_workspace/91_report.md` + `_workspace/report.docx` |
+| Report Writer | `teams/report-writer.md` | Final report, executive summary, DOCX deliverable | `docx`, Xberg for templates, `python-docx` via `uv`, all workspace artifacts | `_workspace/91_report.md` + `_workspace/report.docx` |
 
 ## Investigation Workflow
 
@@ -99,7 +99,7 @@ You must know the available specialists and route work to them. Do not invent su
 
 ### Phase 5: Report
 1. If report requested: spawn Report Writer via `task(subagent_type="general")`.
-   - Read `${HARNESS_ROOT}/teams/report-writer.md`, append "Use `skills/docx-reporting/SKILL.md` for DOCX output. Read all artifacts from `_workspace/`. Generate final report. Output to `_workspace/91_report.md` and `_workspace/report.docx` if DOCX requested."
+   - Read `${HARNESS_ROOT}/teams/report-writer.md`, append "Use `skills/docx/SKILL.md` for DOCX output. Read all artifacts from `_workspace/`. Generate final report. Output to `_workspace/91_report.md` and `_workspace/report.docx` if DOCX requested."
 2. Summarize clear analyst next steps.
 
 ## Standard Subagent Call Protocol
@@ -152,7 +152,7 @@ Subagents must return concise findings to the lead and write their full evidence
 | Credential leak / CTI correlation with Cyble | CTI Correlation Analyst | Brand Protection Analyst for impersonation, Entra/Azure Config Analyst for identity control review, Alert Triage Analyst if active misuse | Use `cyble.vision` first when available and document leak recency/source confidence |
 | URL and file analysis with filescan.io / MetaDefender / sandbox tooling | Phishing URL Analyst for URLs, CTI Correlation Analyst for hashes/IOCs | Brand Protection Analyst if brand abuse, Microsoft Defender KQL Analyst if MDO detonation data exists | Use `filescan` MCP first; MetaDefender only if configured; otherwise mark as tool gap and use approved fallback sandbox sources |
 | Phishing webpage analysis with browser automation | Phishing URL Analyst | Brand Protection Analyst, CTI Correlation Analyst | Use `browser-investigation`; capture screenshot, DOM/forms, network requests, redirect chain; no real credentials |
-| Report generation using DOCX report skill | Report Writer | Evidence Reviewer before report; originating specialists for corrections | Use `skills/docx-reporting/SKILL.md`; report only after evidence QA passes |
+| Report generation using DOCX report skill | Report Writer | Evidence Reviewer before report; originating specialists for corrections | Use `skills/docx/SKILL.md`; report only after evidence QA passes |
 | SOAR / automation design | Automation Flow Designer | Alert Triage Analyst for decision logic, specialist tool owners for API steps | Keep design platform-agnostic unless platform is specified |
 
 ## Delegation Rules
