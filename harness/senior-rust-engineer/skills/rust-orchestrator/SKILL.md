@@ -29,7 +29,40 @@ Hybrid: parallel discovery → sequential design/implementation → parallel rev
 
 All agent prompts live at `${HARNESS_ROOT}/teams/<name>.md`. Read the agent file before each task spawn and pass its content as the task prompt body, appended with the task-specific context.
 
+## Orchestrator responsibility
+
+The Rust Engineer Lead coordinates the team. It is not a mega-agent and should not personally perform specialist work when a dedicated subagent should own it. The lead owns routing, context handoff, conflict resolution, final decisions, and user-facing synthesis.
+
+Direct lead-only handling is reserved for tiny, low-risk questions or one-line edits with no public API, unsafe, async, security, dependency, or performance implications. For non-trivial Rust engineering, delegate to the smallest set of specialists that covers the risk.
+
+## Delegation rules
+
+| Task or risk | Required delegation | Context to pass | Expected output |
+|---|---|---|---|
+| Architecture/design review | Rust Architect | User goal, crate layout, key modules, constraints, dependency boundaries | Architecture recommendation, risks, final design decision needed |
+| Implementation planning | Rust Architect first; Rust Implementer for feasibility and code changes | Architecture artifact, target files, acceptance criteria, protected files | Implementation plan or changed files, verification status, final recommendation |
+| Unsafe code review | Security Reviewer; Rust Reviewer for idiomatic correctness | Unsafe blocks/functions, FFI boundaries, invariants, tests, threat model | BLOCKER/WARNING/INFO findings and safety recommendation |
+| Async/concurrency review | Async Rust Specialist; Security Reviewer for atomics/manual `Send`/`Sync` or shared mutable state | Async call graph, runtime assumptions, locks/channels/tasks, cancellation requirements | Concurrency hazards, runtime strategy, test scenarios, final recommendation |
+| Performance optimization | Performance Engineer; Rust Architect for design-level bottlenecks | Hot paths, benchmarks/profiles, target metrics, changed files | Measured/proposed optimizations, tradeoffs, final recommendation |
+| API design | API Design Reviewer; Rust Architect for public type/trait design | Public API diff, semver expectations, feature flags, docs expectations | API findings, semver impact, accept/change recommendation |
+| Testing strategy | Testing Engineer | Architecture, implementation notes, review findings, edge cases, invariants | Test plan, test changes, command output, remaining gaps |
+| Security review | Security Reviewer | Trust boundaries, untrusted inputs, auth/secrets, dependencies, unsafe/FFI, diff | Vulnerability findings, severity, ship/block recommendation |
+| Dependency/crate review | Rust Architect + Security Reviewer; Performance Engineer if compile time/binary size matters | `Cargo.toml`, `Cargo.lock`, features, alternatives, licensing/security constraints | Dependency decision, supply-chain risks, maintenance status, final recommendation |
+| Documentation review | Documentation Maintainer; API Design Reviewer for public API wording/naming | Public items, README/docs paths, examples, doc-test expectations | Missing docs, suggested text, doc readiness recommendation |
+
+Routing defaults:
+
+- Always include Rust Reviewer before final approval of non-trivial code changes.
+- Always include Testing Engineer before claiming a code change is complete unless the task is explicitly review-only or planning-only.
+- Include Security Reviewer for untrusted input, `unsafe`, FFI, deserialization, filesystem path handling, credentials, dependency changes, or supply-chain questions.
+- Include Async Rust Specialist for `.await`, Tokio, channels, locks, tasks, cancellation, atomics in async paths, or concurrency design.
+- Include API Design Reviewer for any `pub` API, trait, type, feature flag, semver, error type, or user-facing naming change.
+- Include Documentation Maintainer when public items, README, examples, or docs are created or changed.
+- If a relevant specialist is skipped due to low risk, record the reason in `_workspace/00_task.md`.
+
 ## Workflow
+
+Use the full implementation pipeline only when the user asks for code changes. For planning-only, review-only, audit-only, or documentation-only tasks, run only the relevant phases and record skipped phases in `_workspace/00_task.md`.
 
 ### Phase 0: Context check
 
@@ -43,14 +76,7 @@ All agent prompts live at `${HARNESS_ROOT}/teams/<name>.md`. Read the agent file
 ### Phase 1: Understand the task
 
 1. Parse the user request. Identify scope: new feature, refactor, bug fix, optimization, audit.
-2. Determine which agents are needed from the agent map above:
-   - All tasks need: Architect + Implementer + Reviewer.
-   - Async code → add Async Specialist.
-   - Performance-sensitive → add Performance Engineer.
-   - `unsafe` or FFI → add Security Reviewer.
-   - Public API changes → add API Design Reviewer.
-   - New or changed public items → add Docs Maintainer.
-   - All tasks: Testing Engineer.
+2. Determine which agents are needed from the delegation rules above. Choose the smallest sufficient specialist set; do not default to every agent.
 3. Explore the codebase with a `task` subagent (subagent_type `explore`):
    - Read `Cargo.toml`, key modules, existing public API, test structure.
    - Return: crate structure, dependencies, existing patterns, key types.
@@ -61,6 +87,8 @@ All agent prompts live at `${HARNESS_ROOT}/teams/<name>.md`. Read the agent file
 
 **Mode:** Sequential (depends on Phase 1 exploration).
 
+Run this phase for design, implementation planning, dependency selection, refactors, public API changes, or any change that affects crate/module boundaries. Skip it for narrow code review or documentation-only tasks unless architecture risk is part of the request.
+
 1. Read `${HARNESS_ROOT}/teams/rust-architect.md`.
 2. Spawn a `task(subagent_type="general")` with the Architect prompt + task context + codebase findings.
 3. Architect returns `_workspace/01_architecture.md`.
@@ -69,6 +97,8 @@ All agent prompts live at `${HARNESS_ROOT}/teams/<name>.md`. Read the agent file
 ### Phase 3: Implementation
 
 **Mode:** Sequential with optional parallel specialist consultation.
+
+Run this phase only when code changes are requested or when the user explicitly asks for an implementation plan from the Implementer. Skip it for review-only or audit-only tasks.
 
 1. If async is involved, first consult Async Specialist:
    - Read `${HARNESS_ROOT}/teams/async-rust-specialist.md`.
@@ -83,11 +113,11 @@ All agent prompts live at `${HARNESS_ROOT}/teams/<name>.md`. Read the agent file
 
 **Mode:** Parallel fan-out. Launch all applicable reviewers in one turn.
 
-For each applicable reviewer, read its team file, then spawn a `task(subagent_type="general")` with the agent prompt + diff of changes + architecture doc.
+For each applicable reviewer, read its team file, then spawn a `task(subagent_type="general")` with the agent prompt + diff or target files plus the architecture doc when present.
 
 | Reviewer | When to include |
 |---|---|
-| Rust Reviewer | Always |
+| Rust Reviewer | Non-trivial code changes or code-review tasks |
 | API Design Reviewer | Public API changes |
 | Security Reviewer | `unsafe`, FFI, or handling untrusted input |
 | Performance Engineer | Hot-path changes or explicit performance goals |
@@ -106,6 +136,8 @@ If blockers exist, return to Phase 3 with findings. Limit to one revision loop. 
 ### Phase 5: Testing
 
 **Mode:** Sequential (depends on reviewed code being final).
+
+Run this phase when code or test strategy changed. For planning-only or review-only tasks, ask Testing Engineer for a strategy artifact instead of modifying tests.
 
 1. Read `${HARNESS_ROOT}/teams/testing-engineer.md`.
 2. Spawn `task(subagent_type="general")` with Testing Engineer prompt + changed files + architecture doc + review findings (for edge cases to test).
@@ -128,28 +160,60 @@ If blockers exist, return to Phase 3 with findings. Limit to one revision loop. 
 
 ## Task prompt template
 
-For each specialist spawn, the prompt must follow this structure:
+For each specialist spawn, the prompt must follow this structure. This is the standard subagent call protocol; keep every field present.
 
 ```text
 {Agent prompt body from teams/<name>.md}
 
-## Task context
-**Goal:** {specific, measurable outcome}
-**Constraints:** {performance targets, compatibility requirements, etc.}
-**Read:** {file paths to read before starting}
-**Do not modify:** {protected files}
-**Write output to:** {artifact path}
-
-## Acceptance criteria
-{checklist of verifiable conditions}
+## Subagent call
+**Task objective:** {specific, measurable outcome for this specialist}
+**Relevant files/paths:** {source files, Cargo manifests, docs, tests, _workspace artifacts}
+**Context to read first:** {_workspace/00_task.md, prior specialist artifacts, diff summary, command output}
+**Constraints:** {MSRV, edition, semver, performance targets, compatibility, no-touch files, user preferences}
+**Expected output format:** {artifact path plus required sections/table}
+**Risks to check:** {specialist-specific risks, edge cases, threat model, perf/correctness traps}
+**Verification to run or assess:** {commands, static checks, benchmark/test expectations, or explain why not run}
+**Final recommendation required:** {ship/block/change/request-info with one-paragraph rationale}
 
 ## Return to orchestrator
-- Summary of what was done
-- List of changed or created files
-- Verification output (command + result)
-- Risks and unresolved questions
-- Artifact paths
+- Summary of findings or changes
+- Artifact path written
+- Changed files, if any
+- Verification output or reason verification was not run
+- BLOCKER/WARNING/INFO findings, if reviewing
+- Final recommendation: ship, block, change, or request-info
+- Risks, uncertainty, and follow-up questions
 ```
+
+Prompt handoff rules:
+
+- Pass concrete file paths instead of broad directory names whenever possible.
+- Pass prior artifacts by path, not by re-summarizing them, unless the artifact is short.
+- For review tasks, include the diff or changed-file list plus architecture and implementation artifacts.
+- For planning tasks, include constraints and acceptance criteria before asking for design options.
+- Require a final recommendation from every specialist; the lead should not infer it from raw notes.
+
+## Synthesis protocol
+
+After subagents return, the lead integrates their outputs rather than concatenating them.
+
+1. Compare findings by file, subsystem, and risk area. Deduplicate repeated issues while preserving the strongest rationale.
+2. Resolve conflicts using this priority order: soundness/security, correctness, public API/semver, data loss, performance, maintainability, documentation, style.
+3. Prefer measured evidence over speculation. Benchmark data beats guessed performance concerns; soundness/security blockers override API or performance approval.
+4. Identify uncertainty explicitly: missing context, commands not run, incomplete specialist coverage, assumptions, or user decisions needed.
+5. Convert findings into actionable next steps with exact files, owner role, required command, and acceptance criteria.
+6. Assign ownership where useful: Implementer fixes code, Architect revises design, Security Reviewer re-checks unsafe/supply-chain fixes, Async Specialist re-checks concurrency, Testing Engineer adds coverage, Docs Maintainer updates docs.
+7. Decide the final state: proceed, implement with constraints, request changes, block, or ask the user for a decision. Include why.
+
+Final synthesis must include:
+
+- Decision: proceed, plan, implemented, blocked, or needs user input.
+- Specialist coverage: called agents and why; relevant agents intentionally skipped and why.
+- Key findings: BLOCKER/WARNING/INFO counts and highest-risk items.
+- Conflict resolution: disagreements and the lead's resolution.
+- Action plan or completion summary: ordered, owned steps.
+- Verification: commands run or required next commands.
+- Residual risk and uncertainty.
 
 ## Error handling
 

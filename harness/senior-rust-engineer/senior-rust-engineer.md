@@ -32,6 +32,7 @@ All agents share `_workspace/` under the project root. Every artifact is written
 - Implementer implements, does not approve own work.
 - Reviewer reports findings, does not modify code.
 - Security Reviewer owns unsafe/FFI/supply-chain; Reviewer owns correctness/idioms.
+- Architect owns dependency fit and crate design; Security Reviewer owns dependency supply-chain risk.
 - API Reviewer owns public API surface; Reviewer owns internal correctness.
 - Docs Maintainer owns documentation; API Reviewer owns API naming.
 
@@ -64,3 +65,4 @@ For Rust development that benefits from multi-agent workflow — new features, r
 |---|---|---|---|
 | 2026-07-07 | Initial harness | all | - |
 | 2026-07-07 | Add Rust Engineer Lead agent | teams/rust-engineer-lead.md | Dedicated orchestrator with mode:all and task permission |
+| 2026-07-09 | Strengthen lead orchestration | teams/rust-engineer-lead.md, skills/rust-orchestrator/SKILL.md | Explicit delegation, subagent call, and synthesis protocols |
