@@ -68,15 +68,5 @@
       "command": ["bunx", "-y", "cloakbrowser-mcp@latest"],
       "environment": { "PLAYWRIGHT_MCP_OUTPUT_DIR": ".cloakbrowser-artifacts", "PLAYWRIGHT_MCP_HEADLESS": "true" },
     },
-    "wiz": {
-      "enabled": true,
-      "type": "remote",
-      "url": "https://mcp.app.wiz.io",
-      "headers": {
-        "Wiz-Client-Id": "{env:WIZ_CLIENT_ID}",
-        "Wiz-Client-Secret": "{env:WIZ_CLIENT_SECRET}",
-        "Wiz-DataCenter": "{env:WIZ_TENANT_DC}"
-      }
-    },
   },
 }
