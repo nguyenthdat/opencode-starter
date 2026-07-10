@@ -1,24 +1,24 @@
-[submodule ".opencode/vendor/xberg-plugins"]
-	path = .opencode/vendor/xberg-plugins
+[submodule "vendor/xberg-plugins"]
+	path = vendor/xberg-plugins
 	url = https://github.com/xberg-io/plugins.git
-[submodule ".opencode/vendor/ECC"]
-	path = .opencode/vendor/ECC
+[submodule "vendor/ECC"]
+	path = vendor/ECC
 	url = https://github.com/affaan-m/ECC.git
-[submodule ".opencode/vendor/qdrant-skills"]
-	path = .opencode/vendor/qdrant-skills
+[submodule "vendor/qdrant-skills"]
+	path = vendor/qdrant-skills
 	url = https://github.com/qdrant/skills.git
-[submodule ".opencode/vendor/cloudflare-skills"]
-	path = .opencode/vendor/cloudflare-skills
+[submodule "vendor/cloudflare-skills"]
+	path = vendor/cloudflare-skills
 	url = https://github.com/cloudflare/skills.git
-[submodule ".opencode/vendor/clickhouse-skills"]
-	path = .opencode/vendor/clickhouse-skills
+[submodule "vendor/clickhouse-skills"]
+	path = vendor/clickhouse-skills
 	url = https://github.com/ClickHouse/agent-skills.git
-[submodule ".opencode/vendor/redpanda-skills"]
-	path = .opencode/vendor/redpanda-skills
+[submodule "vendor/redpanda-skills"]
+	path = vendor/redpanda-skills
 	url = https://github.com/redpanda-data/skills.git
-[submodule ".opencode/vendor/windmill-skills"]
-	path = .opencode/vendor/windmill-skills
+[submodule "vendor/windmill-skills"]
+	path = vendor/windmill-skills
 	url = https://github.com/windmill-labs/windmill-cli-docs.git
-[submodule ".opencode/vendor/engineers-skills"]
-	path = .opencode/vendor/engineers-skills
+[submodule "vendor/engineers-skills"]
+	path = vendor/engineers-skills
 	url = https://github.com/mattpocock/skills.git
