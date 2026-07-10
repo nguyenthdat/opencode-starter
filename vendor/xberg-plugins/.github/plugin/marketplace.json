@@ -1,0 +1,43 @@
+{
+  "name": "xberg",
+  "owner": {
+    "name": "Kreuzberg, Inc.",
+    "email": "contact@xberg.io"
+  },
+  "metadata": {
+    "description": "Curated document-intelligence plugins by Kreuzberg, Inc.",
+    "version": "0.2.2"
+  },
+  "plugins": [
+    {
+      "name": "xberg",
+      "description": "Local document extraction: text, tables, metadata, images from 91+ formats with optional OCR.",
+      "version": "0.2.2",
+      "source": "./plugins/xberg"
+    },
+    {
+      "name": "crawlberg",
+      "description": "Web crawling and scraping with HTML→Markdown and headless-Chrome fallback.",
+      "version": "0.2.2",
+      "source": "./plugins/crawlberg"
+    },
+    {
+      "name": "html-to-markdown",
+      "description": "Fast, lossless HTML→Markdown conversion with structured metadata, tables, and document-structure extraction.",
+      "version": "0.2.2",
+      "source": "./plugins/html-to-markdown"
+    },
+    {
+      "name": "liter-llm",
+      "description": "Universal LLM API client for 143 providers — chat, streaming, tools, embeddings, search, OCR, plus an OpenAI-compatible proxy and an MCP server.",
+      "version": "0.2.2",
+      "source": "./plugins/liter-llm"
+    },
+    {
+      "name": "tree-sitter-language-pack",
+      "description": "Parse and extract code intelligence from 300+ programming languages with tree-sitter — structure, imports, symbols, and syntax-aware chunking.",
+      "version": "0.2.2",
+      "source": "./plugins/tree-sitter-language-pack"
+    }
+  ]
+}

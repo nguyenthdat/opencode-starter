@@ -1,0 +1,14 @@
+{
+  "name": "@xberg-io/plugins",
+  "version": "0.2.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate:opencode": "node scripts/validate-opencode.mjs"
+  },
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@11.8.0"
+}

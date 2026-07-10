@@ -1,0 +1,42 @@
+{
+  "name": "@xberg-io/opencode-tree-sitter-language-pack",
+  "version": "0.1.1",
+  "description": "OpenCode tools for parsing and code intelligence with the ts-pack CLI.",
+  "keywords": [
+    "chunking",
+    "code-intelligence",
+    "opencode",
+    "parsing",
+    "tree-sitter"
+  ],
+  "homepage": "https://github.com/xberg-io/plugins/tree/main/plugins/tree-sitter-language-pack",
+  "bugs": {
+    "url": "https://github.com/xberg-io/plugins/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xberg-io/plugins.git",
+    "directory": "plugins/tree-sitter-language-pack"
+  },
+  "files": [
+    ".opencode/",
+    "assets/",
+    "README.md"
+  ],
+  "type": "module",
+  "main": ".opencode/plugins/tree-sitter-language-pack.js",
+  "exports": {
+    ".": "./.opencode/plugins/tree-sitter-language-pack.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.17.8"
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "html-to-markdown",
+  "description": "Fast, lossless HTML→Markdown conversion with structured metadata, tables, and document-structure extraction.",
+  "version": "0.2.2",
+  "contextFileName": "GEMINI.md"
+}

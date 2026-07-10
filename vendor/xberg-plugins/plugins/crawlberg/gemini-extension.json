@@ -1,0 +1,6 @@
+{
+  "name": "crawlberg",
+  "description": "Web crawling and scraping with HTML→Markdown and headless-Chrome fallback.",
+  "version": "0.2.2",
+  "contextFileName": "GEMINI.md"
+}
