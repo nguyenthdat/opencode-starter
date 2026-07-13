@@ -116,10 +116,26 @@ function parseJsonc(raw) {
 // Config
 // ---------------------------------------------------------------------------
 
+function defaultConfigForRoot(root) {
+  const directOpenCodeRoot =
+    existsSync(join(root, "dynamic-skills.jsonc")) ||
+    existsSync(join(root, "dynamic-skills.json")) ||
+    existsSync(join(root, "plugins", "dynamic-skills.js"));
+
+  return {
+    ...DEFAULT_CONFIG,
+    searchPaths: directOpenCodeRoot
+      ? ["skills", "harness/*/skills", "vendor/*/skills"]
+      : [...DEFAULT_CONFIG.searchPaths],
+  };
+}
+
 function findConfigFile(root) {
   const candidates = [
     join(root, ".opencode", "dynamic-skills.jsonc"),
     join(root, ".opencode", "dynamic-skills.json"),
+    join(root, "dynamic-skills.jsonc"),
+    join(root, "dynamic-skills.json"),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -129,6 +145,7 @@ function findConfigFile(root) {
 
 function loadConfig(context) {
   const root = context?.directory || process.cwd();
+  const defaults = defaultConfigForRoot(root);
   const candidate = findConfigFile(root);
 
   if (candidate) {
@@ -145,7 +162,7 @@ function loadConfig(context) {
 
   if (!candidate) {
     configPath = null;
-    config = { ...DEFAULT_CONFIG };
+    config = defaults;
     return config;
   }
 
@@ -156,7 +173,7 @@ function loadConfig(context) {
   } catch (e) {
     // On parse failure, warn via console but don't crash — fall back to defaults
     configPath = null;
-    config = { ...DEFAULT_CONFIG, _parseError: e.message };
+    config = { ...defaults, _parseError: e.message };
     return config;
   }
 
@@ -164,21 +181,21 @@ function loadConfig(context) {
   config = {
     searchPaths: Array.isArray(parsed.searchPaths)
       ? parsed.searchPaths
-      : DEFAULT_CONFIG.searchPaths,
+      : defaults.searchPaths,
     cacheTTL:
       typeof parsed.cacheTTL === "number"
         ? parsed.cacheTTL
-        : DEFAULT_CONFIG.cacheTTL,
+        : defaults.cacheTTL,
     allowAbsolutePaths:
       typeof parsed.allowAbsolutePaths === "boolean"
         ? parsed.allowAbsolutePaths
-        : DEFAULT_CONFIG.allowAbsolutePaths,
+        : defaults.allowAbsolutePaths,
     debug:
-      typeof parsed.debug === "boolean" ? parsed.debug : DEFAULT_CONFIG.debug,
+      typeof parsed.debug === "boolean" ? parsed.debug : defaults.debug,
     maxSkillFileSize:
       typeof parsed.maxSkillFileSize === "number"
         ? parsed.maxSkillFileSize
-        : DEFAULT_CONFIG.maxSkillFileSize,
+        : defaults.maxSkillFileSize,
   };
   return config;
 }

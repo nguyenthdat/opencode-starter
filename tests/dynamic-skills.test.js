@@ -20,8 +20,11 @@ import { tmpdir } from "node:os";
 // ---------------------------------------------------------------------------
 
 const PROJECT_ROOT = resolve(import.meta.dir, "..");
-const PROJECT_NODE_MODULES = join(PROJECT_ROOT, ".opencode", "node_modules");
-const PLUGIN_SRC = join(PROJECT_ROOT, ".opencode", "plugins", "dynamic-skills.js");
+const OPENCODE_ROOT = existsSync(join(PROJECT_ROOT, "plugins", "dynamic-skills.js"))
+  ? PROJECT_ROOT
+  : join(PROJECT_ROOT, ".opencode");
+const PROJECT_NODE_MODULES = join(OPENCODE_ROOT, "node_modules");
+const PLUGIN_SRC = join(OPENCODE_ROOT, "plugins", "dynamic-skills.js");
 
 let testBase;
 
@@ -42,6 +45,16 @@ function makeTestRoot(name) {
   // Copy plugin
   writeFileSync(join(root, "plugin.js"), readFileSync(PLUGIN_SRC, "utf-8"));
 
+  return root;
+}
+
+function makeDirectOpenCodeRoot(name) {
+  const parent = join(testBase, name);
+  const root = join(parent, ".opencode");
+  rmSync(parent, { recursive: true, force: true });
+  mkdirSync(root, { recursive: true });
+  symlinkSync(PROJECT_NODE_MODULES, join(root, "node_modules"), "dir");
+  writeFileSync(join(root, "plugin.js"), readFileSync(PLUGIN_SRC, "utf-8"));
   return root;
 }
 
@@ -113,6 +126,22 @@ describe("path expansion", () => {
     const d = parse(r);
     expect(d.count).toBe(2);
     expect(d.skills.map((s) => s.name).sort()).toEqual(["skill-a", "skill-b"]);
+  });
+
+  it("supports a workspace that is itself the .opencode directory", async () => {
+    const root = makeDirectOpenCodeRoot("direct-root");
+    writeFileSync(
+      join(root, "dynamic-skills.jsonc"),
+      JSON.stringify({ searchPaths: ["skills"], cacheTTL: 0 }),
+    );
+    writeSkill(join(root, "skills", "skill-a"), "skill-a", "A");
+
+    const hooks = await loadPlugin(root);
+    const listed = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    expect(parse(listed).skills.map((s) => s.name)).toEqual(["skill-a"]);
+
+    const checked = await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root));
+    expect(parse(checked).status).toBe("healthy");
   });
 
   it("rejects absolute paths when allowAbsolutePaths is false", async () => {
