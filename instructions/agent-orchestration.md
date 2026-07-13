@@ -8,9 +8,3 @@
 - Retry one failed task once with narrower instructions and the same `task_id`; then return a partial result or blocker.
 - Never delegate merely to relay or summarize another agent's result. The caller reads artifacts, resolves conflicts, and performs routine synthesis.
 - Use validator or synthesizer agents only when a separate quality gate materially improves the result.
-
-## Change History
-
-| Date | Change | Target | Reason |
-|---|---|---|---|
-| 2026-07-13 | Compressed routing and call limits | all agents | Reduce prompt and delegation cost |
