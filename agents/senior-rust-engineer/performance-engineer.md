@@ -1,1 +1,0 @@
-../../harness/senior-rust-engineer/teams/performance-engineer.md
