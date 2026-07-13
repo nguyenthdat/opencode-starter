@@ -1,5 +1,10 @@
-import { spawn } from "node:child_process";
 import { tool } from "@opencode-ai/plugin";
+import {
+  pushFlag,
+  pushOption,
+  resolveReadableFile,
+  runCli,
+} from "../scripts/opencode-plugin-utils.js";
 
 const schema = tool.schema;
 
@@ -8,69 +13,16 @@ const parseFormat = schema
   .default("sexp")
   .describe("Parse output format.");
 
-function hasValue(value) {
-  return value !== undefined && value !== null && value !== "";
-}
+const INSTALL_HINT =
+  "ts-pack was not found. Install it with `brew install xberg-io/tap/ts-pack`, or use `bunx @xberg-io/ts-pack-cli`.";
 
-function pushOption(args, name, value) {
-  if (hasValue(value)) {
-    args.push(name, String(value));
-  }
-}
-
-function pushFlag(args, name, enabled) {
-  if (enabled) {
-    args.push(name);
-  }
-}
-
-function runCli(args, context) {
-  const directory = context?.directory ?? context?.worktree ?? process.cwd();
-
-  return new Promise((resolve, reject) => {
-    const child = spawn("ts-pack", args, {
-      cwd: directory,
-      env: process.env,
-      signal: context?.abort,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const stdout = [];
-    const stderr = [];
-
-    child.stdout.on("data", (chunk) => stdout.push(chunk));
-    child.stderr.on("data", (chunk) => stderr.push(chunk));
-    child.on("error", (error) => {
-      if (error.code === "ENOENT") {
-        resolve({
-          title: "ts-pack CLI not found",
-          output:
-            "Install the ts-pack CLI with `brew install xberg-io/tap/ts-pack`, or run it via `npx @xberg-io/ts-pack-cli` (the CLI proxy's bin is `ts-pack`).",
-          metadata: { exitCode: 127, command: "ts-pack", subcommand: args[0] },
-        });
-        return;
-      }
-      reject(error);
-    });
-    child.on("close", (exitCode, signal) => {
-      const stdoutText = Buffer.concat(stdout).toString("utf8").trim();
-      const stderrText = Buffer.concat(stderr).toString("utf8").trim();
-      const output = [stdoutText, stderrText && `stderr:\n${stderrText}`]
-        .filter(Boolean)
-        .join("\n\n");
-
-      resolve({
-        title:
-          exitCode === 0 ? `ts-pack ${args[0]}` : `ts-pack ${args[0]} failed`,
-        output: output || "(no output)",
-        metadata: {
-          exitCode,
-          signal,
-          command: "ts-pack",
-          subcommand: args[0],
-        },
-      });
-    });
+function executeTsPack(args, context) {
+  return runCli({
+    command: "ts-pack",
+    args,
+    context,
+    timeoutMs: 300_000,
+    installHint: INSTALL_HINT,
   });
 }
 
@@ -91,9 +43,10 @@ export const TreeSitterLanguagePackPlugin = async () => ({
         format: parseFormat,
       },
       async execute(args, context) {
-        const cliArgs = ["parse", args.file, "--format", args.format];
+        const file = await resolveReadableFile(args.file, context);
+        const cliArgs = ["parse", file, "--format", args.format];
         pushOption(cliArgs, "--language", args.language);
-        return runCli(cliArgs, context);
+        return executeTsPack(cliArgs, context);
       },
     }),
     tspack_process: tool({
@@ -135,7 +88,8 @@ export const TreeSitterLanguagePackPlugin = async () => ({
           ),
       },
       async execute(args, context) {
-        const cliArgs = ["process", args.file];
+        const file = await resolveReadableFile(args.file, context);
+        const cliArgs = ["process", file];
         pushOption(cliArgs, "--language", args.language);
         pushFlag(cliArgs, "--all", args.all);
         pushFlag(cliArgs, "--structure", args.structure);
@@ -146,7 +100,7 @@ export const TreeSitterLanguagePackPlugin = async () => ({
         pushFlag(cliArgs, "--docstrings", args.docstrings);
         pushFlag(cliArgs, "--diagnostics", args.diagnostics);
         pushOption(cliArgs, "--chunk-size", args.chunk_size);
-        return runCli(cliArgs, context);
+        return executeTsPack(cliArgs, context);
       },
     }),
     tspack_info: tool({
@@ -159,7 +113,7 @@ export const TreeSitterLanguagePackPlugin = async () => ({
           .describe("Language name (e.g. python, rust, typescript)."),
       },
       async execute(args, context) {
-        return runCli(["info", args.language], context);
+        return executeTsPack(["info", args.language], context);
       },
     }),
   },

@@ -1,5 +1,12 @@
-import { spawn } from "node:child_process";
 import { tool } from "@opencode-ai/plugin";
+import {
+  assertHttpUrl,
+  pushFlag,
+  pushOption,
+  requireExactlyOne,
+  resolveReadableFile,
+  runCli,
+} from "../scripts/opencode-plugin-utils.js";
 
 const schema = tool.schema;
 
@@ -14,7 +21,7 @@ const codeBlockStyle = schema
   .describe("Code block fence style. Default: backticks.");
 
 const outputFormat = schema
-  .enum(["markdown", "djot"])
+  .enum(["markdown", "djot", "plain"])
   .optional()
   .describe("Output markup format. Default: markdown.");
 
@@ -25,72 +32,25 @@ const preset = schema
     "Preprocessing aggressiveness. Requires `preprocess`. Default: standard.",
   );
 
-function hasValue(value) {
-  return value !== undefined && value !== null && value !== "";
-}
+const INSTALL_HINT =
+  "html-to-markdown was not found. Install it with `brew install xberg-io/tap/html-to-markdown`, or use `bunx @xberg-io/html-to-markdown-cli` / `uvx --from html-to-markdown-cli html-to-markdown`.";
 
-function pushOption(args, name, value) {
-  if (hasValue(value)) {
-    args.push(name, String(value));
-  }
-}
-
-function pushFlag(args, name, value) {
-  if (value === true) {
-    args.push(name);
-  }
-}
-
-function runCli(args, context, stdin) {
-  const directory = context?.directory ?? context?.worktree ?? process.cwd();
-
-  return new Promise((resolve, reject) => {
-    const child = spawn("html-to-markdown", args, {
-      cwd: directory,
-      env: process.env,
-      signal: context?.abort,
-      stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
-    });
-
-    const stdout = [];
-    const stderr = [];
-
-    child.stdout.on("data", (chunk) => stdout.push(chunk));
-    child.stderr.on("data", (chunk) => stderr.push(chunk));
-    child.on("error", (error) => {
-      if (error.code === "ENOENT") {
-        resolve({
-          title: "html-to-markdown CLI not found",
-          output:
-            "Install the html-to-markdown CLI with `brew install xberg-io/tap/html-to-markdown`, or run it via `npx html-to-markdown` / `uvx --from html-to-markdown html-to-markdown`.",
-          metadata: { exitCode: 127, command: "html-to-markdown" },
-        });
-        return;
-      }
-      reject(error);
-    });
-    child.on("close", (exitCode, signal) => {
-      const stdoutText = Buffer.concat(stdout).toString("utf8").trim();
-      const stderrText = Buffer.concat(stderr).toString("utf8").trim();
-      const output = [stdoutText, stderrText && `stderr:\n${stderrText}`]
-        .filter(Boolean)
-        .join("\n\n");
-
-      resolve({
-        title: exitCode === 0 ? "html-to-markdown" : "html-to-markdown failed",
-        output: output || "(no output)",
-        metadata: { exitCode, signal, command: "html-to-markdown" },
-      });
-    });
-
-    if (stdin !== undefined) {
-      child.stdin.write(stdin);
-      child.stdin.end();
-    }
+function executeHtmlToMarkdown(args, context, stdin) {
+  return runCli({
+    command: "html-to-markdown",
+    args,
+    context,
+    stdin,
+    timeoutMs: 300_000,
+    installHint: INSTALL_HINT,
+    title: "html-to-markdown",
   });
 }
 
 function styleArgs(args, params) {
+  if (params.preset && params.preprocess !== true) {
+    throw new Error("`preset` requires `preprocess: true`");
+  }
   pushOption(args, "--heading-style", params.heading_style);
   pushOption(args, "--code-block-style", params.code_block_style);
   pushOption(args, "--output-format", params.output_format);
@@ -124,24 +84,22 @@ export const HtmlToMarkdownPlugin = async () => ({
         preset,
       },
       async execute(args, context) {
+        const source = requireExactlyOne(args, ["path", "html"]);
         const cliArgs = [];
         styleArgs(cliArgs, args);
 
-        if (hasValue(args.path)) {
-          cliArgs.push(args.path);
-          return runCli(cliArgs, context);
+        if (source === "path") {
+          cliArgs.push(await resolveReadableFile(args.path, context));
+          return executeHtmlToMarkdown(cliArgs, context);
         }
-        if (hasValue(args.html)) {
-          return runCli(cliArgs, context, args.html);
-        }
-        throw new Error("Provide either `path` or `html`.");
+        return executeHtmlToMarkdown(cliArgs, context, args.html);
       },
     }),
     html_to_markdown_fetch_url: tool({
       description:
         "Fetch a URL and convert its HTML to Markdown (or Djot) with the html-to-markdown CLI.",
       args: {
-        url: schema.string().min(1).describe("URL to fetch and convert."),
+        url: schema.string().url().describe("HTTP(S) URL to fetch and convert."),
         heading_style: headingStyle,
         code_block_style: codeBlockStyle,
         output_format: outputFormat,
@@ -157,10 +115,10 @@ export const HtmlToMarkdownPlugin = async () => ({
           .describe("Custom User-Agent header for the fetch."),
       },
       async execute(args, context) {
-        const cliArgs = ["--url", args.url];
+        const cliArgs = ["--url", assertHttpUrl(args.url)];
         pushOption(cliArgs, "--user-agent", args.user_agent);
         styleArgs(cliArgs, args);
-        return runCli(cliArgs, context);
+        return executeHtmlToMarkdown(cliArgs, context);
       },
     }),
     html_to_markdown_extract: tool({
@@ -181,7 +139,7 @@ export const HtmlToMarkdownPlugin = async () => ({
           ),
         url: schema
           .string()
-          .min(1)
+          .url()
           .optional()
           .describe("URL to fetch and analyze."),
         include_structure: schema
@@ -196,22 +154,20 @@ export const HtmlToMarkdownPlugin = async () => ({
           ),
       },
       async execute(args, context) {
+        const source = requireExactlyOne(args, ["path", "html", "url"]);
         const cliArgs = ["--json"];
         pushFlag(cliArgs, "--include-structure", args.include_structure);
         pushFlag(cliArgs, "--no-content", args.no_content);
 
-        if (hasValue(args.url)) {
-          cliArgs.push("--url", args.url);
-          return runCli(cliArgs, context);
+        if (source === "url") {
+          cliArgs.push("--url", assertHttpUrl(args.url));
+          return executeHtmlToMarkdown(cliArgs, context);
         }
-        if (hasValue(args.path)) {
-          cliArgs.push(args.path);
-          return runCli(cliArgs, context);
+        if (source === "path") {
+          cliArgs.push(await resolveReadableFile(args.path, context));
+          return executeHtmlToMarkdown(cliArgs, context);
         }
-        if (hasValue(args.html)) {
-          return runCli(cliArgs, context, args.html);
-        }
-        throw new Error("Provide one of `path`, `html`, or `url`.");
+        return executeHtmlToMarkdown(cliArgs, context, args.html);
       },
     }),
   },

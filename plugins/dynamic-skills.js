@@ -1,24 +1,32 @@
 import {
+  closeSync,
   readFileSync,
+  readSync,
   existsSync,
+  openSync,
   readdirSync,
   statSync,
   realpathSync,
 } from "node:fs";
-import { join, resolve, basename, isAbsolute, normalize } from "node:path";
+import {
+  join,
+  resolve,
+  basename,
+  isAbsolute,
+  normalize,
+  relative,
+} from "node:path";
 import { homedir } from "node:os";
 import { tool } from "@opencode-ai/plugin";
+import { parse as parseJsoncText, printParseErrorCode } from "jsonc-parser";
+import { parse as parseYaml } from "yaml";
 
 const schema = tool.schema;
 
 // ---------------------------------------------------------------------------
-// Module-level cache
+// Workspace-scoped state
 // ---------------------------------------------------------------------------
-let cache = null;
-let cacheTimestamp = 0;
-let configPath = null;
-let config = null;
-let configMtime = 0;
+const workspaceStates = new Map();
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,81 +43,66 @@ const DEFAULT_CONFIG = {
 // Max bytes to read for frontmatter-only parsing during discovery.
 // Frontmatter is typically < 2 KB; 64 KB is generous headroom.
 const FRONTMATTER_READ_LIMIT = 65536;
+const MAX_DISCOVERY_DEPTH = 12;
+const MAX_DISCOVERY_DIRECTORIES = 20_000;
+const SKILL_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// ---------------------------------------------------------------------------
-// JSONC parser (handles comments + trailing commas)
-// ---------------------------------------------------------------------------
+const CONFIG_SCHEMA = schema
+  .object({
+    searchPaths: schema.array(schema.string().min(1)).min(1).max(64).optional(),
+    cacheTTL: schema.number().finite().min(0).max(86_400).optional(),
+    allowAbsolutePaths: schema.boolean().optional(),
+    debug: schema.boolean().optional(),
+    maxSkillFileSize: schema
+      .number()
+      .int()
+      .positive()
+      .max(4 * 1024 * 1024)
+      .optional(),
+  })
+  .strict();
 
-function stripJsonc(raw) {
-  let result = "";
-  let inString = false;
-  let inSingleLineComment = false;
-  let inMultiLineComment = false;
-  let stringDelim = null;
-
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i];
-    const next = raw[i + 1];
-
-    if (inSingleLineComment) {
-      if (ch === "\n") {
-        inSingleLineComment = false;
-        result += ch;
-      }
-      continue;
-    }
-    if (inMultiLineComment) {
-      if (ch === "*" && next === "/") {
-        inMultiLineComment = false;
-        i++;
-      }
-      continue;
-    }
-    if (inString) {
-      result += ch;
-      if (ch === "\\") {
-        if (next) {
-          result += next;
-          i++;
-        }
-      } else if (ch === stringDelim) {
-        inString = false;
-        stringDelim = null;
-      }
-      continue;
-    }
-    if (ch === "/" && next === "/") {
-      inSingleLineComment = true;
-      i++;
-      continue;
-    }
-    if (ch === "/" && next === "*") {
-      inMultiLineComment = true;
-      i++;
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      inString = true;
-      stringDelim = ch;
-    }
-    result += ch;
+function workspaceRoot(context) {
+  const root = resolve(context?.directory || process.cwd());
+  try {
+    return realpathSync(root);
+  } catch {
+    return root;
   }
-  return result;
 }
 
-function stripTrailingCommas(json) {
-  // Remove trailing commas before ] or } — handles the most common JSONC extension
-  return json.replace(/,(\s*[}\]])/g, "$1");
+function workspaceState(context) {
+  const root = workspaceRoot(context);
+  if (!workspaceStates.has(root)) {
+    workspaceStates.set(root, {
+      root,
+      cache: null,
+      cacheTimestamp: 0,
+      configPath: null,
+      configSignature: null,
+      config: null,
+    });
+  }
+  return workspaceStates.get(root);
 }
+
+// ---------------------------------------------------------------------------
+// JSONC parser
+// ---------------------------------------------------------------------------
 
 function parseJsonc(raw) {
-  const stripped = stripJsonc(raw);
-  const clean = stripTrailingCommas(stripped);
-  try {
-    return JSON.parse(clean);
-  } catch (e) {
-    throw new Error(`Invalid JSONC: ${e.message}`);
+  const errors = [];
+  const parsed = parseJsoncText(raw, errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  });
+  if (errors.length > 0) {
+    const details = errors
+      .map((error) => `${printParseErrorCode(error.error)} at offset ${error.offset}`)
+      .join(", ");
+    throw new Error(`Invalid JSONC: ${details}`);
   }
+  return parsed;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,10 +110,7 @@ function parseJsonc(raw) {
 // ---------------------------------------------------------------------------
 
 function defaultConfigForRoot(root) {
-  const directOpenCodeRoot =
-    existsSync(join(root, "dynamic-skills.jsonc")) ||
-    existsSync(join(root, "dynamic-skills.json")) ||
-    existsSync(join(root, "plugins", "dynamic-skills.js"));
+  const directOpenCodeRoot = basename(resolve(root)) === ".opencode";
 
   return {
     ...DEFAULT_CONFIG,
@@ -131,12 +121,18 @@ function defaultConfigForRoot(root) {
 }
 
 function findConfigFile(root) {
-  const candidates = [
-    join(root, ".opencode", "dynamic-skills.jsonc"),
-    join(root, ".opencode", "dynamic-skills.json"),
+  const directOpenCodeRoot = basename(resolve(root)) === ".opencode";
+  const direct = [
     join(root, "dynamic-skills.jsonc"),
     join(root, "dynamic-skills.json"),
   ];
+  const nested = [
+    join(root, ".opencode", "dynamic-skills.jsonc"),
+    join(root, ".opencode", "dynamic-skills.json"),
+  ];
+  const candidates = directOpenCodeRoot
+    ? [...direct, ...nested]
+    : [...nested, ...direct];
   for (const c of candidates) {
     if (existsSync(c)) return c;
   }
@@ -144,60 +140,44 @@ function findConfigFile(root) {
 }
 
 function loadConfig(context) {
-  const root = context?.directory || process.cwd();
+  const state = workspaceState(context);
+  const root = state.root;
   const defaults = defaultConfigForRoot(root);
   const candidate = findConfigFile(root);
 
-  if (candidate) {
-    try {
-      const st = statSync(candidate);
-      if (candidate === configPath && st.mtimeMs === configMtime) {
-        return config;
-      }
-      configMtime = st.mtimeMs;
-    } catch {
-      // file disappeared, fall through
-    }
-  }
-
   if (!candidate) {
-    configPath = null;
-    config = defaults;
-    return config;
+    if (state.configSignature !== "defaults") state.cache = null;
+    state.configPath = null;
+    state.configSignature = "defaults";
+    state.config = defaults;
+    return state.config;
   }
 
-  const raw = readFileSync(candidate, "utf-8");
-  let parsed;
+  let signature;
   try {
-    parsed = parseJsonc(raw);
-  } catch (e) {
-    // On parse failure, warn via console but don't crash — fall back to defaults
-    configPath = null;
-    config = { ...defaults, _parseError: e.message };
-    return config;
-  }
+    const st = statSync(candidate);
+    signature = `${candidate}:${st.mtimeMs}:${st.size}`;
+    if (signature === state.configSignature && state.config) return state.config;
 
-  configPath = candidate;
-  config = {
-    searchPaths: Array.isArray(parsed.searchPaths)
-      ? parsed.searchPaths
-      : defaults.searchPaths,
-    cacheTTL:
-      typeof parsed.cacheTTL === "number"
-        ? parsed.cacheTTL
-        : defaults.cacheTTL,
-    allowAbsolutePaths:
-      typeof parsed.allowAbsolutePaths === "boolean"
-        ? parsed.allowAbsolutePaths
-        : defaults.allowAbsolutePaths,
-    debug:
-      typeof parsed.debug === "boolean" ? parsed.debug : defaults.debug,
-    maxSkillFileSize:
-      typeof parsed.maxSkillFileSize === "number"
-        ? parsed.maxSkillFileSize
-        : defaults.maxSkillFileSize,
-  };
-  return config;
+    const parsed = parseJsonc(readFileSync(candidate, "utf-8"));
+    const validated = CONFIG_SCHEMA.safeParse(parsed);
+    if (!validated.success) {
+      throw new Error(validated.error.issues.map((issue) => issue.message).join("; "));
+    }
+
+    state.configPath = candidate;
+    state.configSignature = signature;
+    state.config = { ...defaults, ...validated.data };
+    state.cache = null;
+    state.cacheTimestamp = 0;
+    return state.config;
+  } catch (e) {
+    if (signature !== state.configSignature) state.cache = null;
+    state.configPath = candidate;
+    state.configSignature = signature || `${candidate}:error`;
+    state.config = { ...defaults, _parseError: e.message };
+    return state.config;
+  }
 }
 
 function shouldDebug(args, context) {
@@ -215,6 +195,7 @@ function escapeRegex(str) {
 }
 
 function expandPath(pattern, root, allowAbsolute) {
+  if (typeof pattern !== "string" || pattern.length === 0) return [];
   if (pattern.startsWith("~/")) {
     pattern = join(homedir(), pattern.slice(2));
   }
@@ -234,14 +215,17 @@ function expandPath(pattern, root, allowAbsolute) {
   const resolved = resolve(root, pattern);
 
   if (pattern.includes("*")) {
-    return expandGlob(pattern, root);
+    return expandGlob(pattern, root).filter(
+      (candidate) => allowAbsolute || isWithinRoots(candidate, [root]),
+    );
   }
 
   if (existsSync(resolved)) {
     try {
-      return [realpathSync(resolved)];
+      const canonical = realpathSync(resolved);
+      return allowAbsolute || isWithinRoots(canonical, [root]) ? [canonical] : [];
     } catch {
-      return [resolved];
+      return [];
     }
   }
   return [];
@@ -270,7 +254,9 @@ function expandGlob(pattern, root) {
   const results = [];
   let entries;
   try {
-    entries = readdirSync(base, { withFileTypes: true });
+    entries = readdirSync(base, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
   } catch {
     return [];
   }
@@ -288,7 +274,7 @@ function expandGlob(pattern, root) {
       }
     }
   }
-  return results;
+  return results.sort();
 }
 
 // ---------------------------------------------------------------------------
@@ -296,10 +282,9 @@ function expandGlob(pattern, root) {
 // ---------------------------------------------------------------------------
 
 function collectConfigRoots(context) {
-  const root = context?.directory || process.cwd();
+  const root = workspaceRoot(context);
   const cfg = loadConfig(context);
   const roots = new Set();
-  roots.add(resolve(root)); // project root always allowed
 
   for (const pattern of cfg.searchPaths) {
     const paths = expandPath(pattern, root, cfg.allowAbsolutePaths);
@@ -331,7 +316,8 @@ function isWithinRoots(target, roots) {
       nr = resolve(r);
     }
     nr = normalize(nr);
-    if (normalized === nr || normalized.startsWith(nr + "/")) {
+    const rel = relative(nr, normalized);
+    if (rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))) {
       return true;
     }
   }
@@ -344,137 +330,81 @@ function isWithinRoots(target, roots) {
 
 function findSkillDirs(searchPath) {
   const results = [];
-  let entries;
-  try {
-    entries = readdirSync(searchPath, { withFileTypes: true });
-  } catch {
-    return results;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    if (entry.name.startsWith(".")) continue;
-    const skillMd = join(searchPath, entry.name, "SKILL.md");
-    if (existsSync(skillMd)) {
-      results.push(join(searchPath, entry.name));
+  const queue = [{ directory: searchPath, depth: 0 }];
+  const visited = new Set();
+  let scanned = 0;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    let canonical;
+    try {
+      canonical = realpathSync(current.directory);
+    } catch {
+      continue;
+    }
+    if (visited.has(canonical)) continue;
+    visited.add(canonical);
+
+    scanned++;
+    if (scanned > MAX_DISCOVERY_DIRECTORIES) break;
+
+    const skillMd = join(canonical, "SKILL.md");
+    if (existsSync(skillMd)) results.push(canonical);
+    if (current.depth >= MAX_DISCOVERY_DEPTH) continue;
+
+    let entries;
+    try {
+      entries = readdirSync(canonical, { withFileTypes: true }).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      queue.push({
+        directory: join(canonical, entry.name),
+        depth: current.depth + 1,
+      });
     }
   }
-  return results;
+  return results.sort();
 }
 
 // ---------------------------------------------------------------------------
-// YAML frontmatter parser (handles block scalars: >, >-, |, |-)
+// YAML frontmatter parser
 // ---------------------------------------------------------------------------
+
+function readPrefix(path, sizeLimit) {
+  const fd = openSync(path, "r");
+  try {
+    const buffer = Buffer.alloc(sizeLimit);
+    const bytesRead = readSync(fd, buffer, 0, sizeLimit, 0);
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
 
 function parseSkillMeta(skillMdPath, sizeLimit = FRONTMATTER_READ_LIMIT) {
   try {
-    const fd = readFileSync(skillMdPath, "utf-8");
-    const content = fd.length > sizeLimit ? fd.slice(0, sizeLimit) : fd;
-
+    const content = readPrefix(skillMdPath, sizeLimit);
     const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!match) return { description: "" };
-
-    const frontmatter = match[1];
-    const lines = frontmatter.split("\n");
-    const meta = {};
-
-    for (let i = 0; i < lines.length; i++) {
-      const rawLine = lines[i];
-      if (rawLine.trim() === "") continue;
-
-      const indent = rawLine.search(/\S/);
-      const kv = rawLine.match(/^(\w[\w-]*):\s*(.*)$/);
-
-      if (!kv) continue;
-
-      const key = kv[1];
-      let rawValue = kv[2];
-
-      // Block scalar indicators: >, >-, >+, |, |-, |+
-      const blockMatch = rawValue.match(/^\s*(>[+-]?|\|[+-]?)\s*$/);
-      if (blockMatch) {
-        const style = blockMatch[1];
-        const isLiteral = style[0] === "|"; // | = preserve newlines
-        const chomp = style[1] || ""; // "" = clip, "-" = strip, "+" = keep
-        const parts = [];
-
-        // Collect continuation lines (indented more than the key line)
-        for (let j = i + 1; j < lines.length; j++) {
-          const contLine = lines[j];
-          if (contLine.trim() === "") {
-            if (!isLiteral) parts.push("\n\n");
-            else parts.push("");
-            continue;
-          }
-          const contIndent = contLine.search(/\S/);
-          if (contIndent <= indent) break;
-          parts.push(contLine.trim());
-          i = j;
-        }
-
-        let joined = parts.join(isLiteral ? "\n" : " ");
-        if (chomp === "-") joined = joined.replace(/\n+$/, "");
-        else if (chomp === "") joined = joined.replace(/\n$/, "");
-
-        meta[key] = joined;
-        continue;
-      }
-
-      // Indented plain scalar: key:\n  value across indented lines
-      if (rawValue.trim() === "") {
-        const parts = [];
-        for (let j = i + 1; j < lines.length; j++) {
-          const contLine = lines[j];
-          if (contLine.trim() === "") break;
-          const contIndent = contLine.search(/\S/);
-          if (contIndent <= indent) break;
-          parts.push(contLine.trim());
-          i = j;
-        }
-        if (parts.length > 0) {
-          meta[key] = parts.join(" ");
-          continue;
-        }
-        // Empty value — skip (handled below as "")
-      }
-
-      // Normal scalar value
-      let value = rawValue.trim();
-
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-
-      if (value.startsWith("[") && value.endsWith("]")) {
-        try {
-          value = JSON.parse(value);
-        } catch {
-          const inner = value.slice(1, -1).trim();
-          if (inner === "") {
-            value = [];
-          } else {
-            value = inner.split(",").map((s) => {
-              let t = s.trim();
-              if (
-                (t.startsWith('"') && t.endsWith('"')) ||
-                (t.startsWith("'") && t.endsWith("'"))
-              ) {
-                t = t.slice(1, -1);
-              }
-              return t;
-            });
-          }
-        }
-      }
-
-      meta[key] = value;
+    const parsed = parseYaml(match[1], { maxAliasCount: 0 });
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+      return { description: "", _error: "Frontmatter must be a YAML object" };
     }
-
-    return meta;
-  } catch {
-    return { description: "" };
+    return {
+      name: typeof parsed.name === "string" ? parsed.name : undefined,
+      description:
+        typeof parsed.description === "string" ? parsed.description : "",
+      tags: Array.isArray(parsed.tags)
+        ? parsed.tags.filter((tag) => typeof tag === "string")
+        : [],
+    };
+  } catch (error) {
+    return { description: "", _error: error.message };
   }
 }
 
@@ -482,10 +412,12 @@ function parseSkillMeta(skillMdPath, sizeLimit = FRONTMATTER_READ_LIMIT) {
 // Source classification
 // ---------------------------------------------------------------------------
 
-function classifySource(searchPath) {
+function classifySource(pattern, searchPath) {
   if (
-    searchPath.includes("/.opencode/skills") &&
-    !searchPath.includes("/vendor/")
+    !isAbsolute(pattern) &&
+    !pattern.startsWith("~/") &&
+    !pattern.includes("vendor/") &&
+    !pattern.includes("harness/")
   ) {
     return { source: "local", priority: 0 };
   }
@@ -505,18 +437,20 @@ function classifySource(searchPath) {
 // ---------------------------------------------------------------------------
 
 function discoverSkills(context, debug) {
-  const root = context?.directory || process.cwd();
+  const state = workspaceState(context);
+  const root = state.root;
   const cfg = loadConfig(context);
   const logs = [];
 
   if (debug) {
     logs.push("--- Discovery Start ---");
-    logs.push(`config: ${configPath || "(defaults)"}`);
+    logs.push(`config: ${state.configPath || "(defaults)"}`);
     logs.push(`searchPaths: ${JSON.stringify(cfg.searchPaths)}`);
   }
 
   const allSkills = new Map();
   const duplicateNames = new Map(); // name -> array of { source, path }
+  const seenSkillPaths = new Set();
   let totalFound = 0;
   let totalConflicts = 0;
 
@@ -537,17 +471,40 @@ function discoverSkills(context, debug) {
       const skillDirs = findSkillDirs(searchPath);
 
       for (const skillDir of skillDirs) {
+        let canonicalSkillDir;
+        let skillMd;
+        try {
+          canonicalSkillDir = realpathSync(skillDir);
+          skillMd = realpathSync(join(canonicalSkillDir, "SKILL.md"));
+          if (
+            seenSkillPaths.has(skillMd) ||
+            !isWithinRoots(skillMd, [searchPath]) ||
+            !statSync(skillMd).isFile()
+          ) {
+            continue;
+          }
+        } catch {
+          continue;
+        }
+        seenSkillPaths.add(skillMd);
         totalFound++;
-        const skillMd = join(skillDir, "SKILL.md");
         const meta = parseSkillMeta(skillMd);
-        const name = meta.name || basename(skillDir);
-        const { source, priority, team } = classifySource(searchPath);
+        if (meta._error) {
+          if (debug) logs.push(`    SKIP: ${skillMd}: ${meta._error}`);
+          continue;
+        }
+        const folderName = basename(canonicalSkillDir);
+        const name =
+          typeof meta.name === "string" && SKILL_NAME_RE.test(meta.name)
+            ? meta.name
+            : folderName;
+        const { source, priority, team } = classifySource(pattern, searchPath);
 
         const entry = {
           name,
           description: meta.description || "",
           tags: Array.isArray(meta.tags) ? meta.tags : [],
-          path: skillDir,
+          path: canonicalSkillDir,
           skillMd,
           source,
           team: team || null,
@@ -556,7 +513,9 @@ function discoverSkills(context, debug) {
 
         // Track all occurrences for duplicate reporting
         if (!duplicateNames.has(name)) duplicateNames.set(name, []);
-        duplicateNames.get(name).push({ source, path: skillDir, priority });
+        duplicateNames
+          .get(name)
+          .push({ source, path: canonicalSkillDir, priority });
 
         const existing = allSkills.get(name);
         if (existing) {
@@ -580,7 +539,7 @@ function discoverSkills(context, debug) {
         } else {
           allSkills.set(name, entry);
           if (debug) {
-            logs.push(`    FOUND: "${name}" [${source}] ${skillDir}`);
+            logs.push(`    FOUND: "${name}" [${source}] ${canonicalSkillDir}`);
           }
         }
       }
@@ -602,22 +561,25 @@ function discoverSkills(context, debug) {
 // ---------------------------------------------------------------------------
 
 function getCachedSkills(context, debug) {
+  const state = workspaceState(context);
   const cfg = loadConfig(context);
-  const ttl = (cfg.cacheTTL || 300) * 1000;
+  const ttl = cfg.cacheTTL * 1000;
   const now = Date.now();
 
-  if (cache && now - cacheTimestamp < ttl) {
+  if (ttl > 0 && state.cache && now - state.cacheTimestamp < ttl) {
     // Return a copy so caller can't mutate the cached logs
-    const result = { ...cache };
+    const result = { ...state.cache };
     if (debug) {
-      result.logs = [...(cache.logs || []), "(using cached results)"];
+      result.logs = [...(state.cache.logs || []), "(using cached results)"];
     }
     return result;
   }
 
   const result = discoverSkills(context, debug);
-  cache = result;
-  cacheTimestamp = now;
+  if (ttl > 0) {
+    state.cache = result;
+    state.cacheTimestamp = now;
+  }
   // Return a fresh copy so caller sees the correct logs
   return { ...result, logs: debug ? [...(result.logs || [])] : result.logs };
 }
@@ -626,32 +588,38 @@ function getCachedSkills(context, debug) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatSkillEntry(s) {
-  return {
+function formatSkillEntry(s, includePath = false) {
+  const entry = {
     name: s.name,
     description: s.description,
     tags: s.tags,
     source: s.source,
     team: s.team,
-    path: s.path,
   };
+  if (includePath) entry.path = s.path;
+  return entry;
 }
 
 function resolveSkill(args, skills, context) {
   if (args.path) {
-    const cwd = context?.directory || process.cwd();
-    const resolved = resolve(cwd, args.path);
+    const cwd = workspaceRoot(context);
+    let resolved;
+    let skillMd;
+    try {
+      resolved = realpathSync(resolve(cwd, args.path));
+      skillMd = realpathSync(join(resolved, "SKILL.md"));
+    } catch (error) {
+      return { error: `Cannot resolve skill path "${args.path}": ${error.message}` };
+    }
 
-    // Security: check that resolved path is within configured roots
     const roots = collectConfigRoots(context);
-    if (!isWithinRoots(resolved, roots)) {
+    if (!isWithinRoots(resolved, roots) || !isWithinRoots(skillMd, roots)) {
       return {
         error: `Path "${args.path}" resolves outside configured skill roots: ${resolved}`,
       };
     }
 
-    const skillMd = join(resolved, "SKILL.md");
-    if (!existsSync(skillMd)) {
+    if (!statSync(skillMd).isFile()) {
       return { error: `No SKILL.md found at ${resolved}` };
     }
     return {
@@ -693,13 +661,32 @@ export const DynamicSkillsPlugin = async () => ({
           .boolean()
           .optional()
           .describe("Enable debug output showing discovery scan details."),
+        limit: schema.number().int().positive().max(200).default(100),
+        offset: schema.number().int().min(0).default(0),
+        include_paths: schema
+          .boolean()
+          .default(false)
+          .describe("Include absolute skill paths in results."),
       },
       async execute(args, context) {
         const debug = shouldDebug(args, context);
         const { skills, logs } = getCachedSkills(context, debug);
-        const result = Array.from(skills.values()).map(formatSkillEntry);
+        const limit = args.limit ?? 100;
+        const offset = args.offset ?? 0;
+        const all = Array.from(skills.values()).sort((a, b) =>
+          a.name.localeCompare(b.name),
+        );
+        const result = all
+          .slice(offset, offset + limit)
+          .map((skill) => formatSkillEntry(skill, args.include_paths ?? false));
 
-        const output = { skills: result, count: result.length };
+        const output = {
+          skills: result,
+          count: result.length,
+          total: all.length,
+          offset,
+          has_more: offset + result.length < all.length,
+        };
         if (debug) output.debug = logs;
 
         return {
@@ -733,10 +720,15 @@ export const DynamicSkillsPlugin = async () => ({
           .describe("Filter by source: local, harness, vendor, global."),
         tag: schema.string().optional().describe("Filter by tag."),
         debug: schema.boolean().optional().describe("Enable debug output."),
+        limit: schema.number().int().positive().max(200).default(50),
+        offset: schema.number().int().min(0).default(0),
+        include_paths: schema.boolean().default(false),
       },
       async execute(args, context) {
         const debug = shouldDebug(args, context);
         const { skills, logs } = getCachedSkills(context, debug);
+        const limit = args.limit ?? 50;
+        const offset = args.offset ?? 0;
         let results = Array.from(skills.values());
 
         if (args.team) results = results.filter((s) => s.team === args.team);
@@ -760,9 +752,17 @@ export const DynamicSkillsPlugin = async () => ({
           );
         }
 
+        results.sort((a, b) => a.name.localeCompare(b.name));
+        const total = results.length;
+        const page = results
+          .slice(offset, offset + limit)
+          .map((skill) => formatSkillEntry(skill, args.include_paths ?? false));
         const output = {
-          skills: results.map(formatSkillEntry),
-          count: results.length,
+          skills: page,
+          count: page.length,
+          total,
+          offset,
+          has_more: offset + page.length < total,
         };
         if (debug) output.debug = logs;
 
@@ -873,10 +873,11 @@ export const DynamicSkillsPlugin = async () => ({
         debug: schema.boolean().optional().describe("Enable debug output."),
       },
       async execute(args, context) {
-        cache = null;
-        cacheTimestamp = 0;
-        config = null;
-        configMtime = 0;
+        const state = workspaceState(context);
+        state.cache = null;
+        state.cacheTimestamp = 0;
+        state.config = null;
+        state.configSignature = null;
         const debug = shouldDebug(args, context);
         const { skills, logs } = getCachedSkills(context, debug);
 
@@ -884,7 +885,12 @@ export const DynamicSkillsPlugin = async () => ({
           .map((s) => s.name)
           .sort();
 
-        const output = { refreshed: true, count: skills.size, skills: names };
+        const output = {
+          refreshed: true,
+          count: skills.size,
+          skills: names.slice(0, 100),
+          truncated: names.length > 100,
+        };
         if (debug) output.debug = logs;
 
         return {
@@ -909,7 +915,8 @@ export const DynamicSkillsPlugin = async () => ({
           .describe("Enable verbose debug (always true for doctor)."),
       },
       async execute(args, context) {
-        const root = context?.directory || process.cwd();
+        const state = workspaceState(context);
+        const root = state.root;
         const cfg = loadConfig(context);
         const issues = [];
         const warnings = [];
@@ -918,7 +925,7 @@ export const DynamicSkillsPlugin = async () => ({
         let fail = 0;
 
         info.push(`project root: ${root}`);
-        info.push(`config file: ${configPath || "(using defaults)"}`);
+        info.push(`config file: ${state.configPath || "(using defaults)"}`);
 
         // Report config parse error
         if (cfg._parseError) {
@@ -947,9 +954,9 @@ export const DynamicSkillsPlugin = async () => ({
           );
 
           for (const searchPath of paths) {
-            let entries;
+            let skillDirs;
             try {
-              entries = readdirSync(searchPath, { withFileTypes: true });
+              skillDirs = findSkillDirs(searchPath);
             } catch (e) {
               issues.push({
                 severity: "error",
@@ -960,24 +967,42 @@ export const DynamicSkillsPlugin = async () => ({
               continue;
             }
 
-            for (const entry of entries) {
-              if (!entry.isDirectory()) continue;
-              if (entry.name.startsWith(".")) continue;
-
-              const skillDir = join(searchPath, entry.name);
-              const skillMd = join(skillDir, "SKILL.md");
-
-              if (!existsSync(skillMd)) continue;
+            for (const skillDir of skillDirs) {
+              let skillMd;
 
               try {
-                readFileSync(skillMd, "utf-8"); // readability check
+                skillMd = realpathSync(join(skillDir, "SKILL.md"));
+                if (!isWithinRoots(skillMd, [searchPath]) || !statSync(skillMd).isFile()) {
+                  throw new Error("SKILL.md resolves outside its configured root");
+                }
                 const meta = parseSkillMeta(skillMd);
+                if (meta._error) throw new Error(meta._error);
 
                 if (!meta.name) {
                   warnings.push({
                     path: skillDir,
-                    message: `SKILL.md missing "name" in frontmatter, using directory name "${entry.name}"`,
+                    message: `SKILL.md missing "name" in frontmatter, using directory name "${basename(skillDir)}"`,
                   });
+                }
+
+                if (meta.name && !SKILL_NAME_RE.test(meta.name)) {
+                  issues.push({
+                    severity: "error",
+                    path: skillDir,
+                    message: `Invalid skill name "${meta.name}"`,
+                  });
+                  fail++;
+                  continue;
+                }
+
+                if (meta.name && meta.name !== basename(skillDir)) {
+                  issues.push({
+                    severity: "error",
+                    path: skillDir,
+                    message: `Skill name "${meta.name}" does not match folder "${basename(skillDir)}"`,
+                  });
+                  fail++;
+                  continue;
                 }
 
                 if (!meta.description) {

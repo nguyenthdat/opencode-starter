@@ -214,6 +214,42 @@ describe("skill discovery", () => {
     expect(d.count).toBe(1);
     expect(d.skills[0].name).toBe("unnamed-skill");
   });
+
+  it("discovers nested skills recursively", async () => {
+    const root = makeTestRoot("nested");
+    writeSkill(
+      join(root, ".opencode", "skills", "parent", "children", "nested-skill"),
+      "nested-skill",
+      "Nested",
+    );
+    writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
+
+    const hooks = await loadPlugin(root);
+    const result = parse(
+      await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root)),
+    );
+    expect(result.skills.map((skill) => skill.name)).toEqual(["nested-skill"]);
+  });
+
+  it("paginates list output", async () => {
+    const root = makeTestRoot("paginate");
+    for (const name of ["alpha", "bravo", "charlie"]) {
+      writeSkill(join(root, ".opencode", "skills", name), name, name);
+    }
+    writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
+
+    const hooks = await loadPlugin(root);
+    const result = parse(
+      await hooks.tool.skills_list.execute(
+        { limit: 2, offset: 1, include_paths: false },
+        makeCtx(root),
+      ),
+    );
+    expect(result.skills.map((skill) => skill.name)).toEqual(["bravo", "charlie"]);
+    expect(result.total).toBe(3);
+    expect(result.has_more).toBe(false);
+    expect(result.skills[0].path).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -319,7 +355,7 @@ describe("skills_load", () => {
   it("loads a skill by explicit path", async () => {
     const root = makeTestRoot("load-path");
     writeSkill(join(root, "custom", "explicit-skill"), "explicit-skill", "By path", "", "# Explicit");
-    writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
+    writeConfig(root, { searchPaths: ["custom"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
     const r = await hooks.tool.skills_load.execute({ path: "custom/explicit-skill" }, makeCtx(root));
@@ -391,6 +427,32 @@ describe("cache and refresh", () => {
     expect(d.refreshed).toBe(true);
     expect(d.debug.some((l) => l.includes("Discovery Start"))).toBe(true);
   });
+
+  it("isolates cache entries between workspaces", async () => {
+    const rootA = makeTestRoot("cache-workspace-a");
+    const rootB = makeTestRoot("cache-workspace-b");
+    writeSkill(join(rootA, ".opencode", "skills", "alpha"), "alpha", "A");
+    writeSkill(join(rootB, ".opencode", "skills", "bravo"), "bravo", "B");
+    writeConfig(rootA, { searchPaths: [".opencode/skills"], cacheTTL: 999 });
+    writeConfig(rootB, { searchPaths: [".opencode/skills"], cacheTTL: 999 });
+
+    const hooks = await loadPlugin(rootA);
+    const a = parse(await hooks.tool.skills_list.execute({}, makeCtx(rootA)));
+    const b = parse(await hooks.tool.skills_list.execute({}, makeCtx(rootB)));
+    expect(a.skills.map((skill) => skill.name)).toEqual(["alpha"]);
+    expect(b.skills.map((skill) => skill.name)).toEqual(["bravo"]);
+  });
+
+  it("disables caching when cacheTTL is zero", async () => {
+    const root = makeTestRoot("cache-zero");
+    writeSkill(join(root, ".opencode", "skills", "first"), "first", "First");
+    writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
+    const hooks = await loadPlugin(root);
+
+    expect(parse(await hooks.tool.skills_list.execute({}, makeCtx(root))).count).toBe(1);
+    writeSkill(join(root, ".opencode", "skills", "second"), "second", "Second");
+    expect(parse(await hooks.tool.skills_list.execute({}, makeCtx(root))).count).toBe(2);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -430,6 +492,17 @@ describe("skills_doctor", () => {
     const r = await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root));
     const d = parse(r);
     expect(d.warnings.some((w) => w.message.toLowerCase().includes("missing"))).toBe(true);
+  });
+
+  it("reports non-object JSONC config", async () => {
+    const root = makeTestRoot("doc-invalid-config");
+    writeConfig(root, "null");
+    const hooks = await loadPlugin(root);
+    const result = parse(
+      await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root)),
+    );
+    expect(result.status).toBe("issues_found");
+    expect(result.issues.some((issue) => issue.message.includes("Config parse error"))).toBe(true);
   });
 });
 
@@ -474,7 +547,7 @@ describe("edge cases", () => {
     expect(parse(r).count).toBe(0);
   });
 
-  it("handles symlinked skill directories", async () => {
+  it("handles regular skill directories", async () => {
     const root = makeTestRoot("edge4");
     writeSkill(join(root, ".opencode", "skills", "real"), "real", "Real skill");
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
@@ -482,5 +555,35 @@ describe("edge cases", () => {
     const hooks = await loadPlugin(root);
     const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
     expect(parse(r).count).toBe(1);
+  });
+
+  it("rejects explicit path traversal outside configured roots", async () => {
+    const root = makeTestRoot("edge-path-traversal");
+    writeSkill(join(testBase, "outside-skill"), "outside-skill", "Outside");
+    mkdirSync(join(root, ".opencode", "skills"), { recursive: true });
+    writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
+
+    const hooks = await loadPlugin(root);
+    const result = parse(
+      await hooks.tool.skills_load.execute(
+        { path: "../outside-skill" },
+        makeCtx(root),
+      ),
+    );
+    expect(result.error).toContain("outside configured skill roots");
+  });
+
+  it("does not follow a SKILL.md symlink outside its configured root", async () => {
+    const root = makeTestRoot("edge-file-symlink");
+    const skillDir = join(root, ".opencode", "skills", "escape");
+    const outside = join(testBase, "outside-SKILL.md");
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(outside, "---\nname: escape\ndescription: outside\n---\n");
+    symlinkSync(outside, join(skillDir, "SKILL.md"));
+    writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
+
+    const hooks = await loadPlugin(root);
+    const result = parse(await hooks.tool.skills_list.execute({}, makeCtx(root)));
+    expect(result.count).toBe(0);
   });
 });

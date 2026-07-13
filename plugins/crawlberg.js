@@ -1,5 +1,11 @@
-import { spawn } from "node:child_process";
 import { tool } from "@opencode-ai/plugin";
+import {
+  assertHttpUrl,
+  pushFlag,
+  pushOption,
+  runCli,
+  validateJsonObject,
+} from "../scripts/opencode-plugin-utils.js";
 
 const schema = tool.schema;
 
@@ -12,87 +18,16 @@ const browserMode = schema
   .default("auto")
   .describe("When to use headless browser fallback.");
 
-function hasValue(value) {
-  return value !== undefined && value !== null && value !== "";
-}
+const INSTALL_HINT =
+  "crawlberg was not found. Install it with `brew install xberg-io/tap/crawlberg`, or use `bunx @xberg-io/crawlberg-cli` / `uvx --from crawlberg-cli crawlberg`.";
 
-function pushOption(args, name, value) {
-  if (hasValue(value)) {
-    args.push(name, String(value));
-  }
-}
-
-function pushFlag(args, name, enabled) {
-  if (enabled) {
-    args.push(name);
-  }
-}
-
-function validateJson(value, name) {
-  if (!hasValue(value)) {
-    return;
-  }
-
-  try {
-    JSON.parse(value);
-  } catch (error) {
-    throw new Error(`${name} must be valid JSON: ${error.message}`);
-  }
-}
-
-function runCli(args, context) {
-  const directory = context?.directory ?? context?.worktree ?? process.cwd();
-
-  return new Promise((resolve, reject) => {
-    const child = spawn("crawlberg", args, {
-      cwd: directory,
-      env: process.env,
-      signal: context?.abort,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const stdout = [];
-    const stderr = [];
-
-    child.stdout.on("data", (chunk) => stdout.push(chunk));
-    child.stderr.on("data", (chunk) => stderr.push(chunk));
-    child.on("error", (error) => {
-      if (error.code === "ENOENT") {
-        resolve({
-          title: "crawlberg CLI not found",
-          output:
-            "Install the crawlberg CLI with `brew install xberg-io/tap/crawlberg`, or run it via `npx @xberg-io/crawlberg-cli` / `uvx --from crawlberg-cli crawlberg`.",
-          metadata: {
-            exitCode: 127,
-            command: "crawlberg",
-            subcommand: args[0],
-          },
-        });
-        return;
-      }
-      reject(error);
-    });
-    child.on("close", (exitCode, signal) => {
-      const stdoutText = Buffer.concat(stdout).toString("utf8").trim();
-      const stderrText = Buffer.concat(stderr).toString("utf8").trim();
-      const output = [stdoutText, stderrText && `stderr:\n${stderrText}`]
-        .filter(Boolean)
-        .join("\n\n");
-
-      resolve({
-        title:
-          exitCode === 0
-            ? `crawlberg ${args[0]}`
-            : `crawlberg ${args[0]} failed`,
-        output: output || "(no output)",
-        metadata: {
-          exitCode,
-          signal,
-          command: "crawlberg",
-          subcommand: args[0],
-        },
-      });
-    });
+function executeCrawlberg(args, context) {
+  return runCli({
+    command: "crawlberg",
+    args,
+    context,
+    timeoutMs: 900_000,
+    installHint: INSTALL_HINT,
   });
 }
 
@@ -144,11 +79,11 @@ export const CrawlbergPlugin = async () => ({
           .describe("Optional CrawlConfig JSON."),
       },
       async execute(args, context) {
-        validateJson(args.config, "config");
+        validateJsonObject(args.config, "config");
 
-        const cliArgs = ["scrape", args.url];
+        const cliArgs = ["scrape", assertHttpUrl(args.url)];
         pushSharedCrawlOptions(cliArgs, args);
-        return runCli(cliArgs, context);
+        return executeCrawlberg(cliArgs, context);
       },
     }),
     crawlberg_crawl: tool({
@@ -158,6 +93,7 @@ export const CrawlbergPlugin = async () => ({
         urls: schema
           .array(schema.string().url())
           .min(1)
+          .max(20)
           .describe("Seed URLs to crawl."),
         depth: schema
           .number()
@@ -170,13 +106,14 @@ export const CrawlbergPlugin = async () => ({
           .number()
           .int()
           .positive()
+          .max(10000)
           .optional()
           .describe("Maximum pages to crawl."),
         concurrent: schema
           .number()
           .int()
           .positive()
-          .max(256)
+          .max(64)
           .default(10)
           .describe("Maximum concurrent requests."),
         rate_limit: schema
@@ -220,11 +157,11 @@ export const CrawlbergPlugin = async () => ({
           .describe("Optional CrawlConfig JSON."),
       },
       async execute(args, context) {
-        validateJson(args.config, "config");
+        validateJsonObject(args.config, "config");
 
         const cliArgs = [
           "crawl",
-          ...args.urls,
+          ...args.urls.map((url) => assertHttpUrl(url, "urls[]")),
           "--depth",
           String(args.depth),
           "--concurrent",
@@ -234,7 +171,7 @@ export const CrawlbergPlugin = async () => ({
         pushOption(cliArgs, "--rate-limit", args.rate_limit);
         pushFlag(cliArgs, "--stay-on-domain", args.stay_on_domain);
         pushSharedCrawlOptions(cliArgs, args);
-        return runCli(cliArgs, context);
+        return executeCrawlberg(cliArgs, context);
       },
     }),
     crawlberg_map: tool({
@@ -246,6 +183,7 @@ export const CrawlbergPlugin = async () => ({
           .number()
           .int()
           .positive()
+          .max(10000)
           .optional()
           .describe("Maximum URLs to return."),
         search: schema
@@ -278,9 +216,9 @@ export const CrawlbergPlugin = async () => ({
           .describe("Optional CrawlConfig JSON."),
       },
       async execute(args, context) {
-        validateJson(args.config, "config");
+        validateJsonObject(args.config, "config");
 
-        const cliArgs = ["map", args.url];
+        const cliArgs = ["map", assertHttpUrl(args.url)];
         pushOption(cliArgs, "--limit", args.limit);
         pushOption(cliArgs, "--search", args.search);
         pushOption(cliArgs, "--format", args.format);
@@ -289,7 +227,7 @@ export const CrawlbergPlugin = async () => ({
         pushOption(cliArgs, "--browser-endpoint", args.browser_endpoint);
         pushFlag(cliArgs, "--respect-robots-txt", args.respect_robots_txt);
         pushOption(cliArgs, "--config", args.config);
-        return runCli(cliArgs, context);
+        return executeCrawlberg(cliArgs, context);
       },
     }),
   },
