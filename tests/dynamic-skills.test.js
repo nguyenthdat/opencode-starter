@@ -325,13 +325,19 @@ describe("skill discovery", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const listed = parse(await hooks.tool.skills_list.execute({}, makeCtx(root)));
+    const listed = parse(
+      await hooks.tool.skills_list.execute({}, makeCtx(root)),
+    );
     expect(listed.skills[0].description).toBe("Route: details");
     const checked = parse(
       await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root)),
     );
     expect(checked.status).toBe("healthy");
-    expect(checked.warnings.some((warning) => warning.message.includes("compatibility mode"))).toBe(true);
+    expect(
+      checked.warnings.some((warning) =>
+        warning.message.includes("compatibility mode"),
+      ),
+    ).toBe(true);
   });
 });
 
