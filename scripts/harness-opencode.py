@@ -364,19 +364,9 @@ def find_team_mcp_file(team_dir: Path) -> Path | None:
     return None
 
 
-def find_target_opencode_config(project_root: Path) -> Path | None:
-    """Find the target opencode config file.
-
-    Checks in order: .opencode/opencode.jsonc, opencode.jsonc
-    """
-    candidates = [
-        project_root / ".opencode" / "opencode.jsonc",
-        project_root / "opencode.jsonc",
-    ]
-    for p in candidates:
-        if p.is_file():
-            return p
-    return candidates[0]
+def find_target_opencode_config(opencode_root: Path) -> Path:
+    """Return the config file within the .opencode repository root."""
+    return opencode_root / "opencode.jsonc"
 
 
 def merge_mcp(
@@ -643,7 +633,7 @@ Examples:
     )
     parser.add_argument(
         "--root",
-        help="Project root directory (default: auto-detect from script location)",
+        help=".opencode repository root (default: auto-detect from script location)",
     )
 
     args = parser.parse_args()
@@ -671,9 +661,9 @@ Examples:
         HARNESS_DIR
     PROJECT_ROOT = root
     HARNESS_DIR = root / "harness"
-    AGENTS_ROOT = root / ".opencode" / "agents"
-    SKILLS_ROOT = root / ".opencode" / "skills"
-    INSTRUCTIONS_ROOT = root / ".opencode" / "instructions"
+    AGENTS_ROOT = root / "agents"
+    SKILLS_ROOT = root / "skills"
+    INSTRUCTIONS_ROOT = root / "instructions"
 
     target_cfg = find_target_opencode_config(root)
     TARGET_CONFIG = target_cfg

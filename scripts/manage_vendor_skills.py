@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run
 """Manage OpenCode vendor skills -- discover, link, unlink, and validate.
 
 Vendor repos live under .opencode/vendor/<vendor-name>/.
@@ -167,11 +167,11 @@ def detect_duplicates(
 
 
 def skills_dir(repo_root: Path) -> Path:
-    return repo_root / ".opencode" / "skills"
+    return repo_root / "skills"
 
 
 def vendor_dir(repo_root: Path) -> Path:
-    return repo_root / ".opencode" / "vendor"
+    return repo_root / "vendor"
 
 
 def link_skill(
@@ -598,7 +598,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--repo-root",
         type=Path,
         default=None,
-        help="Path to the repository root (default: auto-detect)",
+        help="Path to the .opencode repository root (default: script location)",
     )
 
     sub = parser.add_subparsers(dest="command", help="Available commands")
@@ -646,14 +646,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def find_repo_root() -> Path:
-    """Auto-detect the repository root by walking up from cwd."""
-    candidate = Path.cwd()
-    while candidate != candidate.parent:
-        if (candidate / ".git").exists() and (candidate / ".opencode").is_dir():
-            return candidate
-        candidate = candidate.parent
-    print("❌ Could not auto-detect repo root. Use --repo-root.")
-    sys.exit(1)
+    """Return the .opencode repository root containing this script."""
+    return Path(__file__).resolve().parent.parent
 
 
 def _resolve_repo_root(candidate: Path) -> Path:
@@ -672,8 +666,8 @@ def main() -> None:
     repo_root = args.repo_root or find_repo_root()
     repo_root = _resolve_repo_root(repo_root)
 
-    if not (repo_root / ".opencode").is_dir():
-        print(f"❌ {repo_root} does not contain .opencode/ directory")
+    if not (repo_root / "opencode.jsonc").is_file():
+        print(f"❌ {repo_root} is not a .opencode repository root")
         sys.exit(1)
 
     commands = {
