@@ -317,3 +317,6 @@ pyrightconfig.json
 qdrant_data/
 *.orig
 *.rej
+manifest-allowbackup-snapshot.md
+application-element-snapshot.md
+_workspace/

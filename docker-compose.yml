@@ -1,0 +1,16 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    platform: linux/arm64
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - ./qdrant_data:/qdrant/storage
+      - ./qdrant_config/production.yaml:/qdrant/config/production.yaml
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 4G
