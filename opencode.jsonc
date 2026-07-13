@@ -61,11 +61,6 @@
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN}" },
     },
-    "sequential-thinking": {
-      "enabled": false,
-      "type": "local",
-      "command": ["bunx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
-    },
     "context7": {
       "enabled": true,
       "type": "remote",
