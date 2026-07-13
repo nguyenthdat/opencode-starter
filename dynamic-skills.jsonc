@@ -21,11 +21,7 @@
   //   - Glob patterns for team/vendor directories
   //   - Home directory expansion (~/)
   //   - Absolute paths
-  "searchPaths": [
-    ".opencode/skills",
-    "harness/*/skills",
-    ".opencode/vendor/*/skills"
-  ],
+  "searchPaths": [".opencode/skills", "harness/*/skills", ".opencode/vendor/*/skills"],
 
   // Cache time-to-live in seconds. Discovery results are cached
   // for this duration. Use skills_refresh to force re-scan.
@@ -41,5 +37,5 @@
 
   // Maximum size (in bytes) of a SKILL.md file to load.
   // Files larger than this will be truncated with a warning.
-  "maxSkillFileSize": 1048576
+  "maxSkillFileSize": 1048576,
 }

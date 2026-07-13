@@ -66,16 +66,6 @@
       "type": "local",
       "command": ["bunx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
     },
-    "filesystem": {
-      "enabled": false,
-      "type": "local",
-      "command": ["bunx", "-y", "@modelcontextprotocol/server-filesystem", "."],
-    },
-    "token-optimizer": {
-      "enabled": false,
-      "type": "local",
-      "command": ["bunx", "-y", "token-optimizer-mcp"],
-    },
     "context7": {
       "enabled": true,
       "type": "remote",
@@ -87,11 +77,6 @@
       "type": "remote",
       "url": "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,web_search_advanced_exa",
       "headers": { "x-api-key": "{env:EXA_API_KEY}" },
-    },
-    "everything": {
-      "enabled": false,
-      "type": "local",
-      "command": ["bunx", "-y", "@modelcontextprotocol/server-everything"],
     },
     "time": { "enabled": true, "type": "local", "command": ["uvx", "mcp-server-time"] },
     "cloakbrowser": {
