@@ -82,7 +82,9 @@ export function assertHttpUrl(value, name = "url") {
 export function requireExactlyOne(args, names) {
   const supplied = names.filter((name) => hasValue(args[name]));
   if (supplied.length !== 1) {
-    throw new Error(`Provide exactly one of: ${names.map((name) => `\`${name}\``).join(", ")}`);
+    throw new Error(
+      `Provide exactly one of: ${names.map((name) => `\`${name}\``).join(", ")}`,
+    );
   }
   return supplied[0];
 }
@@ -193,14 +195,19 @@ export function runCli({
     if (context?.abort?.aborted) onAbort();
     else context?.abort?.addEventListener("abort", onAbort, { once: true });
 
-    const timeout = setTimeout(() => terminate(`timed out after ${timeoutMs} ms`), timeoutMs);
+    const timeout = setTimeout(
+      () => terminate(`timed out after ${timeoutMs} ms`),
+      timeoutMs,
+    );
     timeout.unref?.();
 
     child.stdout.on("data", collect(stdout));
     child.stderr.on("data", collect(stderr));
     child.on("error", (error) => {
       if (error.code === "ENOENT") {
-        rejectOnce(new Error(installHint || `${command} was not found on PATH`));
+        rejectOnce(
+          new Error(installHint || `${command} was not found on PATH`),
+        );
         return;
       }
       rejectOnce(error);
@@ -210,19 +217,29 @@ export function runCli({
       cleanup();
 
       const stdoutText = boundedText(stdout, maxOutputBytes);
-      const stderrText = boundedText(stderr, Math.min(maxOutputBytes, ERROR_DETAIL_BYTES));
+      const stderrText = boundedText(
+        stderr,
+        Math.min(maxOutputBytes, ERROR_DETAIL_BYTES),
+      );
 
       if (terminationReason) {
         rejectOnce(new Error(`${title} ${terminationReason}`));
         return;
       }
       if (stdinError) {
-        rejectOnce(new Error(`${title} could not write stdin: ${stdinError.message}`));
+        rejectOnce(
+          new Error(`${title} could not write stdin: ${stdinError.message}`),
+        );
         return;
       }
       if (exitCode !== 0) {
-        const detail = stderrText || stdoutText || `terminated by ${signal || "unknown signal"}`;
-        rejectOnce(new Error(`${title} failed with exit code ${exitCode}: ${detail}`));
+        const detail =
+          stderrText ||
+          stdoutText ||
+          `terminated by ${signal || "unknown signal"}`;
+        rejectOnce(
+          new Error(`${title} failed with exit code ${exitCode}: ${detail}`),
+        );
         return;
       }
 

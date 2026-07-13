@@ -3,6 +3,7 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -78,7 +79,10 @@ describe("shared CLI runner", () => {
   it("keeps successful stderr out of JSON stdout", async () => {
     process.env.FAKE_CLI_MODE = "warning";
     const hooks = await XbergPlugin();
-    const result = await hooks.tool.xberg_formats.execute({ format: "json" }, context());
+    const result = await hooks.tool.xberg_formats.execute(
+      { format: "json" },
+      context(),
+    );
     expect(() => JSON.parse(result.output)).not.toThrow();
     expect(result.metadata.stderr).toContain("non-fatal warning");
   });
@@ -129,7 +133,7 @@ describe("local file wrappers", () => {
       { path: "local.txt", format: "json" },
       localContext,
     );
-    expect(JSON.parse(localResult.output).args).toContain(local);
+    expect(JSON.parse(localResult.output).args).toContain(realpathSync(local));
     expect(localContext.approvals).toHaveLength(0);
 
     const externalContext = context();
@@ -139,7 +143,9 @@ describe("local file wrappers", () => {
     );
     expect(externalContext.approvals).toHaveLength(1);
     expect(externalContext.approvals[0].permission).toBe("external_directory");
-    expect(externalContext.approvals[0].patterns).toEqual([external]);
+    expect(externalContext.approvals[0].patterns).toEqual([
+      realpathSync(external),
+    ]);
   });
 
   it("passes canonical source paths to ts-pack", async () => {
@@ -150,7 +156,7 @@ describe("local file wrappers", () => {
       { file: "sample.js", format: "json" },
       context(),
     );
-    expect(JSON.parse(result.output).args).toContain(source);
+    expect(JSON.parse(result.output).args).toContain(realpathSync(source));
   });
 });
 

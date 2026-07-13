@@ -99,7 +99,10 @@ export const HtmlToMarkdownPlugin = async () => ({
       description:
         "Fetch a URL and convert its HTML to Markdown (or Djot) with the html-to-markdown CLI.",
       args: {
-        url: schema.string().url().describe("HTTP(S) URL to fetch and convert."),
+        url: schema
+          .string()
+          .url()
+          .describe("HTTP(S) URL to fetch and convert."),
         heading_style: headingStyle,
         code_block_style: codeBlockStyle,
         output_format: outputFormat,

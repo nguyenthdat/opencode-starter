@@ -98,7 +98,10 @@ function parseJsonc(raw) {
   });
   if (errors.length > 0) {
     const details = errors
-      .map((error) => `${printParseErrorCode(error.error)} at offset ${error.offset}`)
+      .map(
+        (error) =>
+          `${printParseErrorCode(error.error)} at offset ${error.offset}`,
+      )
       .join(", ");
     throw new Error(`Invalid JSONC: ${details}`);
   }
@@ -157,12 +160,15 @@ function loadConfig(context) {
   try {
     const st = statSync(candidate);
     signature = `${candidate}:${st.mtimeMs}:${st.size}`;
-    if (signature === state.configSignature && state.config) return state.config;
+    if (signature === state.configSignature && state.config)
+      return state.config;
 
     const parsed = parseJsonc(readFileSync(candidate, "utf-8"));
     const validated = CONFIG_SCHEMA.safeParse(parsed);
     if (!validated.success) {
-      throw new Error(validated.error.issues.map((issue) => issue.message).join("; "));
+      throw new Error(
+        validated.error.issues.map((issue) => issue.message).join("; "),
+      );
     }
 
     state.configPath = candidate;
@@ -223,7 +229,9 @@ function expandPath(pattern, root, allowAbsolute) {
   if (existsSync(resolved)) {
     try {
       const canonical = realpathSync(resolved);
-      return allowAbsolute || isWithinRoots(canonical, [root]) ? [canonical] : [];
+      return allowAbsolute || isWithinRoots(canonical, [root])
+        ? [canonical]
+        : [];
     } catch {
       return [];
     }
@@ -386,12 +394,50 @@ function readPrefix(path, sizeLimit) {
   }
 }
 
+function parseLegacyFrontmatter(frontmatter, parseError) {
+  const meta = { description: "", tags: [] };
+  for (const line of frontmatter.split(/\r?\n/)) {
+    if (/^\s/.test(line)) continue;
+    const match = line.match(/^(name|description|tags):\s*(.*)$/);
+    if (!match) continue;
+    const [, key, raw] = match;
+    let value = raw.trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (key === "tags") {
+      if (value.startsWith("[") && value.endsWith("]")) {
+        meta.tags = value
+          .slice(1, -1)
+          .split(",")
+          .map((tag) => tag.trim().replace(/^['"]|['"]$/g, ""))
+          .filter(Boolean);
+      }
+      continue;
+    }
+    meta[key] = value;
+  }
+  if (!meta.name && !meta.description) {
+    return { description: "", _error: parseError.message };
+  }
+  meta._warning = `Non-standard YAML frontmatter parsed in compatibility mode: ${parseError.message}`;
+  return meta;
+}
+
 function parseSkillMeta(skillMdPath, sizeLimit = FRONTMATTER_READ_LIMIT) {
   try {
     const content = readPrefix(skillMdPath, sizeLimit);
     const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!match) return { description: "" };
-    const parsed = parseYaml(match[1], { maxAliasCount: 0 });
+    let parsed;
+    try {
+      parsed = parseYaml(match[1], { maxAliasCount: 0 });
+    } catch (error) {
+      return parseLegacyFrontmatter(match[1], error);
+    }
     if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
       return { description: "", _error: "Frontmatter must be a YAML object" };
     }
@@ -609,7 +655,9 @@ function resolveSkill(args, skills, context) {
       resolved = realpathSync(resolve(cwd, args.path));
       skillMd = realpathSync(join(resolved, "SKILL.md"));
     } catch (error) {
-      return { error: `Cannot resolve skill path "${args.path}": ${error.message}` };
+      return {
+        error: `Cannot resolve skill path "${args.path}": ${error.message}`,
+      };
     }
 
     const roots = collectConfigRoots(context);
@@ -972,11 +1020,19 @@ export const DynamicSkillsPlugin = async () => ({
 
               try {
                 skillMd = realpathSync(join(skillDir, "SKILL.md"));
-                if (!isWithinRoots(skillMd, [searchPath]) || !statSync(skillMd).isFile()) {
-                  throw new Error("SKILL.md resolves outside its configured root");
+                if (
+                  !isWithinRoots(skillMd, [searchPath]) ||
+                  !statSync(skillMd).isFile()
+                ) {
+                  throw new Error(
+                    "SKILL.md resolves outside its configured root",
+                  );
                 }
                 const meta = parseSkillMeta(skillMd);
                 if (meta._error) throw new Error(meta._error);
+                if (meta._warning) {
+                  warnings.push({ path: skillDir, message: meta._warning });
+                }
 
                 if (!meta.name) {
                   warnings.push({
@@ -996,13 +1052,10 @@ export const DynamicSkillsPlugin = async () => ({
                 }
 
                 if (meta.name && meta.name !== basename(skillDir)) {
-                  issues.push({
-                    severity: "error",
+                  warnings.push({
                     path: skillDir,
                     message: `Skill name "${meta.name}" does not match folder "${basename(skillDir)}"`,
                   });
-                  fail++;
-                  continue;
                 }
 
                 if (!meta.description) {

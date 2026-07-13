@@ -2,7 +2,15 @@
 // /// run: bun test
 // ///
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from "bun:test";
 import {
   existsSync,
   mkdirSync,
@@ -20,7 +28,9 @@ import { tmpdir } from "node:os";
 // ---------------------------------------------------------------------------
 
 const PROJECT_ROOT = resolve(import.meta.dir, "..");
-const OPENCODE_ROOT = existsSync(join(PROJECT_ROOT, "plugins", "dynamic-skills.js"))
+const OPENCODE_ROOT = existsSync(
+  join(PROJECT_ROOT, "plugins", "dynamic-skills.js"),
+)
   ? PROJECT_ROOT
   : join(PROJECT_ROOT, ".opencode");
 const PROJECT_NODE_MODULES = join(OPENCODE_ROOT, "node_modules");
@@ -61,7 +71,7 @@ function makeDirectOpenCodeRoot(name) {
 function writeConfig(root, cfg) {
   writeFileSync(
     join(root, ".opencode", "dynamic-skills.jsonc"),
-    typeof cfg === "string" ? cfg : JSON.stringify(cfg)
+    typeof cfg === "string" ? cfg : JSON.stringify(cfg),
   );
 }
 
@@ -97,7 +107,9 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  try { rmSync(testBase, { recursive: true, force: true }); } catch {}
+  try {
+    rmSync(testBase, { recursive: true, force: true });
+  } catch {}
 });
 
 // ---------------------------------------------------------------------------
@@ -111,18 +123,32 @@ describe("path expansion", () => {
     mkdirSync(join(root, ".opencode", "skills"), { recursive: true });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     expect(parse(r).count).toBe(0);
   });
 
   it("expands harness/*/skills glob", async () => {
     const root = makeTestRoot("glob");
-    writeSkill(join(root, "harness", "team-a", "skills", "skill-a"), "skill-a", "A");
-    writeSkill(join(root, "harness", "team-b", "skills", "skill-b"), "skill-b", "B");
+    writeSkill(
+      join(root, "harness", "team-a", "skills", "skill-a"),
+      "skill-a",
+      "A",
+    );
+    writeSkill(
+      join(root, "harness", "team-b", "skills", "skill-b"),
+      "skill-b",
+      "B",
+    );
 
     writeConfig(root, { searchPaths: ["harness/*/skills"], cacheTTL: 0 });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(2);
     expect(d.skills.map((s) => s.name).sort()).toEqual(["skill-a", "skill-b"]);
@@ -137,10 +163,16 @@ describe("path expansion", () => {
     writeSkill(join(root, "skills", "skill-a"), "skill-a", "A");
 
     const hooks = await loadPlugin(root);
-    const listed = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const listed = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     expect(parse(listed).skills.map((s) => s.name)).toEqual(["skill-a"]);
 
-    const checked = await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root));
+    const checked = await hooks.tool.skills_doctor.execute(
+      { debug: true },
+      makeCtx(root),
+    );
     expect(parse(checked).status).toBe("healthy");
   });
 
@@ -152,7 +184,10 @@ describe("path expansion", () => {
       allowAbsolutePaths: false,
     });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root));
+    const r = await hooks.tool.skills_doctor.execute(
+      { debug: true },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.status).toBe("issues_found");
   });
@@ -170,7 +205,10 @@ describe("skill discovery", () => {
 
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(2);
     expect(d.skills.find((s) => s.name === "docx").source).toBe("local");
@@ -178,16 +216,35 @@ describe("skill discovery", () => {
 
   it("correctly classifies source types", async () => {
     const root = makeTestRoot("classify");
-    writeSkill(join(root, ".opencode", "skills", "local-skill"), "local-skill", "Local");
-    writeSkill(join(root, "harness", "my-team", "skills", "team-skill"), "team-skill", "Team");
-    writeSkill(join(root, ".opencode", "vendor", "acme", "skills", "vendor-skill"), "vendor-skill", "Vendor");
+    writeSkill(
+      join(root, ".opencode", "skills", "local-skill"),
+      "local-skill",
+      "Local",
+    );
+    writeSkill(
+      join(root, "harness", "my-team", "skills", "team-skill"),
+      "team-skill",
+      "Team",
+    );
+    writeSkill(
+      join(root, ".opencode", "vendor", "acme", "skills", "vendor-skill"),
+      "vendor-skill",
+      "Vendor",
+    );
 
     writeConfig(root, {
-      searchPaths: [".opencode/skills", "harness/*/skills", ".opencode/vendor/*/skills"],
+      searchPaths: [
+        ".opencode/skills",
+        "harness/*/skills",
+        ".opencode/vendor/*/skills",
+      ],
       cacheTTL: 0,
     });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(3);
 
@@ -209,7 +266,10 @@ describe("skill discovery", () => {
 
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(1);
     expect(d.skills[0].name).toBe("unnamed-skill");
@@ -245,10 +305,33 @@ describe("skill discovery", () => {
         makeCtx(root),
       ),
     );
-    expect(result.skills.map((skill) => skill.name)).toEqual(["bravo", "charlie"]);
+    expect(result.skills.map((skill) => skill.name)).toEqual([
+      "bravo",
+      "charlie",
+    ]);
     expect(result.total).toBe(3);
     expect(result.has_more).toBe(false);
     expect(result.skills[0].path).toBeUndefined();
+  });
+
+  it("supports legacy frontmatter containing an unquoted colon", async () => {
+    const root = makeTestRoot("legacy-frontmatter");
+    const dir = join(root, ".opencode", "skills", "legacy");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "SKILL.md"),
+      "---\nname: legacy\ndescription: Route: details\n---\n# Legacy",
+    );
+    writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
+
+    const hooks = await loadPlugin(root);
+    const listed = parse(await hooks.tool.skills_list.execute({}, makeCtx(root)));
+    expect(listed.skills[0].description).toBe("Route: details");
+    const checked = parse(
+      await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root)),
+    );
+    expect(checked.status).toBe("healthy");
+    expect(checked.warnings.some((warning) => warning.message.includes("compatibility mode"))).toBe(true);
   });
 });
 
@@ -262,14 +345,25 @@ describe("conflict resolution", () => {
     const n = "shared-skill";
     writeSkill(join(root, ".opencode", "skills", n), n, "from local");
     writeSkill(join(root, "harness", "team-a", "skills", n), n, "from harness");
-    writeSkill(join(root, ".opencode", "vendor", "acme", "skills", n), n, "from vendor");
+    writeSkill(
+      join(root, ".opencode", "vendor", "acme", "skills", n),
+      n,
+      "from vendor",
+    );
 
     writeConfig(root, {
-      searchPaths: [".opencode/skills", "harness/*/skills", ".opencode/vendor/*/skills"],
+      searchPaths: [
+        ".opencode/skills",
+        "harness/*/skills",
+        ".opencode/vendor/*/skills",
+      ],
       cacheTTL: 0,
     });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(1);
     expect(d.skills[0].source).toBe("local");
@@ -279,15 +373,26 @@ describe("conflict resolution", () => {
   it("harness wins over vendor when no local", async () => {
     const root = makeTestRoot("conflict2");
     const n = "hv-skill";
-    writeSkill(join(root, "harness", "team-b", "skills", n), n, "harness version");
-    writeSkill(join(root, ".opencode", "vendor", "acme", "skills", n), n, "vendor version");
+    writeSkill(
+      join(root, "harness", "team-b", "skills", n),
+      n,
+      "harness version",
+    );
+    writeSkill(
+      join(root, ".opencode", "vendor", "acme", "skills", n),
+      n,
+      "vendor version",
+    );
 
     writeConfig(root, {
       searchPaths: ["harness/*/skills", ".opencode/vendor/*/skills"],
       cacheTTL: 0,
     });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(1);
     expect(d.skills[0].source).toBe("harness");
@@ -300,9 +405,24 @@ describe("conflict resolution", () => {
 
 describe("skills_find", () => {
   async function setup(root) {
-    writeSkill(join(root, ".opencode", "skills", "rust-coding"), "rust-coding", "Rust coding", "tags: [rust, coding]");
-    writeSkill(join(root, ".opencode", "skills", "python-coding"), "python-coding", "Python coding", "tags: [python, coding]");
-    writeSkill(join(root, ".opencode", "skills", "security-review"), "security-review", "Security review", "tags: [security, review]");
+    writeSkill(
+      join(root, ".opencode", "skills", "rust-coding"),
+      "rust-coding",
+      "Rust coding",
+      "tags: [rust, coding]",
+    );
+    writeSkill(
+      join(root, ".opencode", "skills", "python-coding"),
+      "python-coding",
+      "Python coding",
+      "tags: [python, coding]",
+    );
+    writeSkill(
+      join(root, ".opencode", "skills", "security-review"),
+      "security-review",
+      "Security review",
+      "tags: [security, review]",
+    );
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
     return loadPlugin(root);
   }
@@ -310,7 +430,10 @@ describe("skills_find", () => {
   it("filters by tag", async () => {
     const root = makeTestRoot("find-tag");
     const hooks = await setup(root);
-    const r = await hooks.tool.skills_find.execute({ tag: "rust" }, makeCtx(root));
+    const r = await hooks.tool.skills_find.execute(
+      { tag: "rust" },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(1);
     expect(d.skills[0].name).toBe("rust-coding");
@@ -319,7 +442,10 @@ describe("skills_find", () => {
   it("filters by query against name", async () => {
     const root = makeTestRoot("find-name");
     const hooks = await setup(root);
-    const r = await hooks.tool.skills_find.execute({ query: "security" }, makeCtx(root));
+    const r = await hooks.tool.skills_find.execute(
+      { query: "security" },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(1);
     expect(d.skills[0].name).toBe("security-review");
@@ -328,7 +454,10 @@ describe("skills_find", () => {
   it("filters by query against description", async () => {
     const root = makeTestRoot("find-desc");
     const hooks = await setup(root);
-    const r = await hooks.tool.skills_find.execute({ query: "coding" }, makeCtx(root));
+    const r = await hooks.tool.skills_find.execute(
+      { query: "coding" },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(2);
   });
@@ -341,11 +470,20 @@ describe("skills_find", () => {
 describe("skills_load", () => {
   it("loads a skill by name", async () => {
     const root = makeTestRoot("load-name");
-    writeSkill(join(root, ".opencode", "skills", "test-skill"), "test-skill", "A test", "", "# Full\nBody text.");
+    writeSkill(
+      join(root, ".opencode", "skills", "test-skill"),
+      "test-skill",
+      "A test",
+      "",
+      "# Full\nBody text.",
+    );
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_load.execute({ name: "test-skill" }, makeCtx(root));
+    const r = await hooks.tool.skills_load.execute(
+      { name: "test-skill" },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.name).toBe("test-skill");
     expect(d.content).toContain("# Full");
@@ -354,11 +492,20 @@ describe("skills_load", () => {
 
   it("loads a skill by explicit path", async () => {
     const root = makeTestRoot("load-path");
-    writeSkill(join(root, "custom", "explicit-skill"), "explicit-skill", "By path", "", "# Explicit");
+    writeSkill(
+      join(root, "custom", "explicit-skill"),
+      "explicit-skill",
+      "By path",
+      "",
+      "# Explicit",
+    );
     writeConfig(root, { searchPaths: ["custom"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_load.execute({ path: "custom/explicit-skill" }, makeCtx(root));
+    const r = await hooks.tool.skills_load.execute(
+      { path: "custom/explicit-skill" },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.name).toBe("explicit-skill");
     expect(d.source).toBe("explicit");
@@ -369,7 +516,10 @@ describe("skills_load", () => {
     const root = makeTestRoot("load-404");
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_load.execute({ name: "nope" }, makeCtx(root));
+    const r = await hooks.tool.skills_load.execute(
+      { name: "nope" },
+      makeCtx(root),
+    );
     expect(parse(r).error).toBeDefined();
   });
 
@@ -378,7 +528,10 @@ describe("skills_load", () => {
     mkdirSync(join(root, "empty"), { recursive: true });
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_load.execute({ path: "empty" }, makeCtx(root));
+    const r = await hooks.tool.skills_load.execute(
+      { path: "empty" },
+      makeCtx(root),
+    );
     expect(parse(r).error).toBeDefined();
   });
 });
@@ -390,28 +543,45 @@ describe("skills_load", () => {
 describe("cache and refresh", () => {
   it("caches results and refresh picks up new skills", async () => {
     const root = makeTestRoot("cache1");
-    writeSkill(join(root, ".opencode", "skills", "first"), "first", "First skill");
+    writeSkill(
+      join(root, ".opencode", "skills", "first"),
+      "first",
+      "First skill",
+    );
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 999 });
 
     const hooks = await loadPlugin(root);
 
     // First call — no cache
-    const r1 = await hooks.tool.skills_list.execute({ debug: true }, makeCtx(root));
+    const r1 = await hooks.tool.skills_list.execute(
+      { debug: true },
+      makeCtx(root),
+    );
     const d1 = parse(r1);
     expect(d1.count).toBe(1);
     expect(d1.debug.some((l) => l.includes("cached"))).toBe(false);
 
     // Add a new skill while cache is active
-    writeSkill(join(root, ".opencode", "skills", "second"), "second", "Second skill");
+    writeSkill(
+      join(root, ".opencode", "skills", "second"),
+      "second",
+      "Second skill",
+    );
 
     // Should still return 1 (cached)
-    const r2 = await hooks.tool.skills_list.execute({ debug: true }, makeCtx(root));
+    const r2 = await hooks.tool.skills_list.execute(
+      { debug: true },
+      makeCtx(root),
+    );
     const d2 = parse(r2);
     expect(d2.count).toBe(1);
     expect(d2.debug.some((l) => l.includes("cached"))).toBe(true);
 
     // Refresh — should now see both
-    const rr = await hooks.tool.skills_refresh.execute({ debug: false }, makeCtx(root));
+    const rr = await hooks.tool.skills_refresh.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     const dr = parse(rr);
     expect(dr.count).toBe(2);
   });
@@ -422,7 +592,10 @@ describe("cache and refresh", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_refresh.execute({ debug: true }, makeCtx(root));
+    const r = await hooks.tool.skills_refresh.execute(
+      { debug: true },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.refreshed).toBe(true);
     expect(d.debug.some((l) => l.includes("Discovery Start"))).toBe(true);
@@ -449,9 +622,13 @@ describe("cache and refresh", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
     const hooks = await loadPlugin(root);
 
-    expect(parse(await hooks.tool.skills_list.execute({}, makeCtx(root))).count).toBe(1);
+    expect(
+      parse(await hooks.tool.skills_list.execute({}, makeCtx(root))).count,
+    ).toBe(1);
     writeSkill(join(root, ".opencode", "skills", "second"), "second", "Second");
-    expect(parse(await hooks.tool.skills_list.execute({}, makeCtx(root))).count).toBe(2);
+    expect(
+      parse(await hooks.tool.skills_list.execute({}, makeCtx(root))).count,
+    ).toBe(2);
   });
 });
 
@@ -466,7 +643,10 @@ describe("skills_doctor", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root));
+    const r = await hooks.tool.skills_doctor.execute(
+      { debug: true },
+      makeCtx(root),
+    );
     expect(parse(r).status).toBe("healthy");
   });
 
@@ -475,7 +655,10 @@ describe("skills_doctor", () => {
     writeConfig(root, { searchPaths: ["nonexistent/path"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root));
+    const r = await hooks.tool.skills_doctor.execute(
+      { debug: true },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.status).toBe("issues_found");
     expect(d.issues.length).toBeGreaterThan(0);
@@ -489,9 +672,14 @@ describe("skills_doctor", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root));
+    const r = await hooks.tool.skills_doctor.execute(
+      { debug: true },
+      makeCtx(root),
+    );
     const d = parse(r);
-    expect(d.warnings.some((w) => w.message.toLowerCase().includes("missing"))).toBe(true);
+    expect(
+      d.warnings.some((w) => w.message.toLowerCase().includes("missing")),
+    ).toBe(true);
   });
 
   it("reports non-object JSONC config", async () => {
@@ -502,7 +690,11 @@ describe("skills_doctor", () => {
       await hooks.tool.skills_doctor.execute({ debug: true }, makeCtx(root)),
     );
     expect(result.status).toBe("issues_found");
-    expect(result.issues.some((issue) => issue.message.includes("Config parse error"))).toBe(true);
+    expect(
+      result.issues.some((issue) =>
+        issue.message.includes("Config parse error"),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -517,7 +709,10 @@ describe("edge cases", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     const d = parse(r);
     expect(d.count).toBe(0);
     expect(d.skills).toEqual([]);
@@ -531,7 +726,10 @@ describe("edge cases", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     expect(parse(r).count).toBe(0);
   });
 
@@ -543,7 +741,10 @@ describe("edge cases", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     expect(parse(r).count).toBe(0);
   });
 
@@ -553,7 +754,10 @@ describe("edge cases", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const r = await hooks.tool.skills_list.execute({ debug: false }, makeCtx(root));
+    const r = await hooks.tool.skills_list.execute(
+      { debug: false },
+      makeCtx(root),
+    );
     expect(parse(r).count).toBe(1);
   });
 
@@ -583,7 +787,9 @@ describe("edge cases", () => {
     writeConfig(root, { searchPaths: [".opencode/skills"], cacheTTL: 0 });
 
     const hooks = await loadPlugin(root);
-    const result = parse(await hooks.tool.skills_list.execute({}, makeCtx(root)));
+    const result = parse(
+      await hooks.tool.skills_list.execute({}, makeCtx(root)),
+    );
     expect(result.count).toBe(0);
   });
 });
