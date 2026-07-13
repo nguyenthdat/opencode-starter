@@ -281,20 +281,22 @@ GET logs-udp.syslog*/_search
   },
   "size": 50,
   "sort": [{"@timestamp": {"order": "desc"}}],
-  "fields": ["_index", "_id", "_version", "@timestamp", "ndr_host", "source.ip", "destination.ip", "destination.port", "message"]
+  "version": true,
+  "fields": ["@timestamp", "ndr_host", "source.ip", "destination.ip", "destination.port", "message"]
 }
 ```
 
 ### Metadata-Aware DSL Query
 
-Include `_index`, `_id`, `_version` in evidence by requesting them in `fields` or using `_source` with a field list:
+Read `_index` and `_id` from each search hit's metadata. Request `"version": true` only when `_version` is required; these metadata values are not ordinary mapped fields.
 
 ```json
 GET <index>/_search
 {
   "query": {"match_all": {}},
   "size": 20,
-  "fields": ["_index", "_id", "@timestamp", "*"],
+  "version": true,
+  "fields": ["@timestamp", "*"],
   "_source": false
 }
 ```

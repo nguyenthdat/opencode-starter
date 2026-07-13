@@ -1,6 +1,6 @@
 # Manifest JSONL Schema
 
-Every artifact in `_workspace/` must have a corresponding entry in `_workspace/manifest.jsonl`.
+Every permanent evidence artifact must have a corresponding entry in `_workspace/manifest.jsonl`. Exclude workspace control files and temporary files as defined by `evidence-collection`.
 
 ## Format
 
@@ -23,12 +23,12 @@ One JSON object per line. No trailing commas. UTF-8 encoded. Unix line endings.
 | `event_time_start` | string | No | ISO 8601 UTC start of observed event window. |
 | `event_time_end` | string | No | ISO 8601 UTC end of observed event window. |
 | `entity` | string | No | Subject entity (user, host, IP, domain). Redact if sensitive. |
-| `hash_sha256` | string | No | SHA256 hex digest of the artifact file. Document if unavailable. |
+| `hash_sha256` | string | Yes | SHA256 hex digest of the permanent artifact file. |
 | `raw_or_derived` | string | Yes | `raw` for unmodified originals, `derived` for processed outputs. |
 | `redaction_status` | string | Yes | `raw-sensitive`, `redacted`, `not-sensitive`, `needs-review`. |
 | `sensitivity` | string | Yes | Classification: `internal`, `confidential`, `restricted`, `public`. |
 | `description` | string | Yes | Human-readable summary of what this evidence contains. |
-| `parent_evidence_id` | string | No | For derived artifacts, the source evidence ID. `null` for raw. |
+| `parent_evidence_ids` | array[string] | Yes | Source evidence IDs for derived artifacts. Empty for raw evidence. |
 | `notes` | string | No | Free-form notes: extraction quality, parsing gaps, limitations. |
 
 ## Allowed `artifact_type` Values
@@ -82,7 +82,7 @@ One JSON object per line. No trailing commas. UTF-8 encoded. Unix line endings.
   "redaction_status": "raw-sensitive",
   "sensitivity": "internal",
   "description": "Advanced Hunting query result for DeviceLogonEvents filtered to user jsmith within 1-hour window.",
-  "parent_evidence_id": null,
+  "parent_evidence_ids": [],
   "notes": "Query limited to 1000 rows. Full dataset may be larger."
 }
 ```
@@ -92,8 +92,8 @@ One JSON object per line. No trailing commas. UTF-8 encoded. Unix line endings.
 1. `evidence_id` must be unique across the entire manifest.
 2. `evidence_id` must follow the pattern `E` followed by 4+ zero-padded digits.
 3. `workspace_path` must point to an existing file (once written).
-4. `hash_sha256` must be a 64-character lowercase hex string, or documented as unavailable.
+4. `hash_sha256` must be a 64-character lowercase hex string.
 5. `raw_or_derived` must be `raw` or `derived`.
-6. `parent_evidence_id` must reference an existing `evidence_id` in the manifest, or be `null`.
+6. Every value in `parent_evidence_ids` must reference an existing `evidence_id` in the manifest.
 7. `created_at_utc` must be ISO 8601 with seconds and `Z` suffix.
 8. `case_id` must not be empty.

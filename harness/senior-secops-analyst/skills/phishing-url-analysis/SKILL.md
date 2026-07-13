@@ -1,6 +1,6 @@
 ---
 name: phishing-url-analysis
-description: "Deep phishing URL investigation: safe, evidence-driven, browser-assisted analysis of suspicious URLs, credential harvesting, malware delivery, brand impersonation, redirect-chain tracing, IOC extraction, internal impact validation, and takedown-ready evidence packages. Use when a user provides a suspicious URL, asks to investigate a phishing link, wants to trace redirects, analyze a credential-harvest page, check for malware delivery, validate internal impact from an email-delivered URL, or produce a takedown package. Do NOT use for generic web pentesting, CTI-only lookup, or general URL safety checks without phishing context."
+description: "Deep phishing URL investigation with safe browser capture, redirect tracing, IOC extraction, internal-impact validation, and takedown evidence. Use for a suspicious phishing link, credential-harvest page, malware-delivery URL, rerun, changed-page comparison, or takedown package. Not for generic pentesting or CTI-only lookup. Form submission, downloads, and third-party uploads require explicit approval."
 compatibility: opencode
 metadata:
   domain: secops
@@ -33,11 +33,11 @@ Every action must be safe by default. These rules are non-negotiable.
 2. **Never open suspicious URLs** in a normal user browser, on a production machine, or with real user profiles.
 3. **Never use real credentials, real sessions, real cookies, real corporate accounts, or production browser profiles.**
 4. **Use isolated browser contexts only.** Prefer CloakBrowser for suspicious/cloaked pages. Use Playwright/Firefox DevTools/Chrome DevTools only in sandboxed or ephemeral contexts.
-5. **Disable automatic downloads.** Do not download files unless explicitly needed for analysis and confirmed safe to handle.
+5. **Disable automatic downloads.** Do not download files without explicit user approval and an isolated analysis location.
 6. **Do not execute downloaded files.** Store samples in a safe analysis-only location. Hash before any upload.
 7. **Do not bypass authentication, paywalls, or access controls.**
 8. **Do not attack, exploit, brute force, or scan beyond the target URL/domain scope unless explicitly approved.**
-9. **Do not submit real data into forms.** Use fake/test credentials (e.g., `test@example.com` / `FakePass123!`) only when form-submission behavior must be observed and is deemed safe.
+9. **Do not submit real data into forms.** Fake/test submission still changes remote state and requires explicit user approval.
 10. **Prefer passive observation before interaction.** Inspect the page, DOM, and network behavior before clicking or submitting anything.
 11. **Redact sensitive tokens, cookies, API keys, and personal data** from all output.
 12. **Keep original URLs in a clearly separated evidence section only.** All display output must use defanged versions.
@@ -48,8 +48,8 @@ Before any browser interaction, ask:
 
 1. Is passive inspection sufficient to answer the investigation question? → If yes, do not interact.
 2. Would clicking this element submit credentials, trigger a download, or execute code? → If yes, stop and document the risk.
-3. Is form submission needed to confirm credential harvesting? → Submit fake/test credentials only if safe.
-4. Is downloading a file needed to confirm malware delivery? → Download only to an isolated analysis location, hash first, do not execute.
+3. Is form submission needed to confirm credential harvesting? -> Request explicit approval; otherwise stop at form-action evidence.
+4. Is downloading a file needed to confirm malware delivery? -> Request explicit approval, use an isolated location, hash it, and never execute it.
 
 ---
 
@@ -75,7 +75,7 @@ Before using any browser, MCP, or external tool, inspect what is available and c
 
 ### Tool Selection Rule
 
-Always pick the **highest-priority available tool** that fits the current step. If a tool is unavailable or fails, fall back to the next available tool and **document the tool used and any limitations introduced**.
+Choose the **least-risk capable tool** for the current step, preferring passive observation over interaction or disclosure. If it is unavailable, use the next safe option and document limitations.
 
 ---
 
@@ -262,7 +262,7 @@ When a login form is present:
    - A compromised legitimate site?
    - An IP address directly?
 4. **Determine if credentials are posted to attacker-controlled infrastructure.**
-5. **If safe and mode allows,** submit fake/test credentials:
+5. **Only after explicit user approval,** submit fake/test credentials:
    - Use `test@example.com` / `FakePass123!` or similar
    - Capture the POST request (URL, headers, body)
    - Capture the response (status, headers, body, redirect)

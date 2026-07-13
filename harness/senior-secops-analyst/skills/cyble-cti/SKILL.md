@@ -12,6 +12,8 @@ metadata:
 
 Cyble Vision provides external cyber risk visibility across credential leaks, brand protection, executive monitoring, attack surface management, digital risk protection, vulnerability intelligence, and threat actor/campaign CTI. Treat Cyble as a broad external cyber risk and intelligence platform, not a simple IT CTI lookup tool.
 
+Default to read-only retrieval. Updating alerts, adding comments, scheduling scans, adding or deleting monitored entities, and takedown-related operations are persistent mutations and require explicit user approval immediately before execution.
+
 ## When to Use
 
 Use Cyble when the case involves:

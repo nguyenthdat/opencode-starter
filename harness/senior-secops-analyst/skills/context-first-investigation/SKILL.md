@@ -1,6 +1,6 @@
 ---
 name: context-first-investigation
-description: "Mandatory context gate for every SecOps, CloudSec, threat hunting, phishing, vulnerability, and incident investigation. Before any analysis or verdict, locate or build environment context (system-context.md, _workspace/, MCP sources). Classify context quality as strong/usable/weak/missing. Pass structured context to all downstream agents. Triggers on: investigate, triage, hunt, phishing, cloud investigation, vulnerability, incident, alert, brand, identity, endpoint, report generation, rerun, update context."
+description: "Build, refresh, validate, or summarize SecOps environment context and classify it as strong, usable, weak, or missing. Use when the orchestrator needs a context gate, when the user asks to create/update context, or for partial context refresh and freshness audit. This prepares context; it does not perform the investigation."
 compatibility: opencode
 metadata:
   domain: secops
@@ -10,7 +10,7 @@ metadata:
 
 # Context-First Investigation
 
-Every SecOps investigation must start by loading or generating environment context. Verdicts made without context cause false positives, missed detections, and misclassified severity. This skill is the mandatory context gate — it locates, validates, builds, and hands off structured context before any analysis begins.
+The SecOps orchestrator enforces a context gate because verdicts made without environment context cause false positives, missed detections, and misclassified severity. This skill locates, validates, builds, and prepares structured context for that gate.
 
 This is a context gate, not an investigation skill by itself. After context is loaded, delegate to the correct investigation skill.
 
@@ -30,7 +30,7 @@ Do not begin analysis before context is loaded. Do not make high-confidence verd
 
 Search automatically in this order. Do not ask the user for a path unless every location fails and no MCP/internal source can provide context.
 
-1. `system-context.md` (project root)
+1. `_workspace/00_system_context.md`
 2. `_workspace/system-context.md`
 3. `_workspace/reports/system-context.md`
 4. `context.md`
@@ -71,7 +71,7 @@ This skill prepares context only. After context is loaded, delegate to the corre
 
 ### Phase 1: Context File Discovery
 
-Search automatically for existing context files using `glob` and `filesystem_directory_tree`. Follow the lookup order above. Prefer `system-context.md`. If any context file is found, read it fully.
+Search automatically for existing context files using `glob`, then `read` exact matches. Follow the lookup order above. Prefer the active-run technical baseline. If any context file is found, read it fully.
 
 If automatic discovery finds nothing and no MCP/internal source context is available, ask the user briefly: "No context file or internal source found. Do you have a context file path?" Provide the missing-source list.
 
@@ -105,9 +105,9 @@ Classify context as exactly one of:
 
 If context is missing, stale, or weak:
 
-1. Delegate to the **system-context-analyst** subagent. Provide the current investigation scope and any discovered context files as input.
+1. The SecOps Lead dispatches the **system-context-analyst** subagent. Provide the current investigation scope and discovered context files as input.
 2. The system-context-analyst maps architecture, assets, owners, environments, security tools, telemetry coverage, cloud accounts, identity systems, known constraints, and data sources.
-3. It writes or updates `system-context.md` at the project root.
+3. It writes `_workspace/00_system_context.md` for the active run.
 4. Use Jira, Confluence, Wiz, Defender, Elastic, Tenable, Cyble, GitHub, and Azure only in read-only mode. Do not create tickets, pages, detections, remediations, or cloud resources.
 5. Preserve uncertainty. Mark unverified claims as "needs verification." Document every unavailable source as a gap.
 
@@ -263,7 +263,7 @@ All context evidence and derived context files must live under `_workspace/`:
 
 - Save raw source evidence under `_workspace/raw/`.
 - Save extracted context under `_workspace/derived/summaries/`.
-- Save or update `system-context.md` at the agreed project location.
+- Save or update `_workspace/00_system_context.md` for the active run.
 - Record important context evidence using the evidence-collection skill (assign evidence IDs, write manifest entries).
 - Reference evidence IDs when available.
 
@@ -288,9 +288,9 @@ Public web can help identify public domains, public products, public cloud/servi
 
 ## System Context Integration
 
-If `system-context.md` is missing, stale, or insufficient, delegate to the **system-context-analyst** subagent to create or update it before continuing with the main investigation.
+If the technical baseline is missing, stale, or insufficient, the SecOps Lead dispatches **system-context-analyst** to create or update it before dependent analysis.
 
-The system-context-analyst is defined at `harness/senior-secops-analyst/teams/system-context-analyst.md`. It investigates environment context and writes `system-context.md` as the shared baseline. Do not duplicate its work; delegate to it.
+The system-context-analyst is defined at `harness/senior-secops-analyst/teams/system-context-analyst.md`. It writes `_workspace/00_system_context.md`. Other specialists return handoff requests to the lead instead of dispatching it directly.
 
 ## MCP and Tool Rules
 

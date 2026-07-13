@@ -201,8 +201,8 @@ jq '.[0] | keys' export.json
 # Extract specific fields
 jq '[.[] | {id: .alert_id, severity: .severity, rule: .rule_name}]' alerts.json
 
-# Filter by field value
-jq '.[] | select(.severity >= "high")' alerts.json
+# Filter explicit severity labels; string ordering is not a severity ranking
+jq '.[] | select((.severity | ascii_downcase) == "high" or (.severity | ascii_downcase) == "critical")' alerts.json
 
 # Filter by timestamp range
 jq '.[] | select(.timestamp >= "2026-07-01T00:00:00Z" and .timestamp < "2026-07-02T00:00:00Z")' events.json
@@ -265,8 +265,8 @@ xsv frequency -s alert_name alerts.csv \            # frequency with sort
 ### Miller (mlr)
 
 ```bash
-# Filter rows
-mlr --csv filter '$severity >= "high"' alerts.csv
+# Filter explicit labels; lexical string comparison is not severity ordering
+mlr --csv filter '$severity == "high" || $severity == "critical" || $severity == "High" || $severity == "Critical"' alerts.csv
 
 # Cut fields
 mlr --csv cut -f timestamp,src_ip,alert_name alerts.csv
@@ -382,7 +382,7 @@ jq -r '.[].event_type' events.json | sort | uniq -c | sort -rn
 jq -r '.[].source_ip' events.json | sort -u | wc -l
 
 # Filter JSON, output CSV
-jq -r '.[] | select(.severity >= "high") | [.timestamp, .src_ip, .alert_name] | @csv' alerts.json > high_severity.csv
+jq -r '.[] | select((.severity | ascii_downcase) == "high" or (.severity | ascii_downcase) == "critical") | [.timestamp, .src_ip, .alert_name] | @csv' alerts.json > high_severity.csv
 ```
 
 ### Python Fallback
@@ -414,7 +414,7 @@ print(result.to_string())
 | IPv4 | `\b(?:\d{1,3}\.){3}\d{1,3}\b` | `rg -o 'PATTERN' evidence/*.log` |
 | IPv6 | `\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b` | `rg -oi 'PATTERN' evidence/*.log` |
 | Domains | `\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b` | `rg -o 'PATTERN' evidence/*.txt` |
-| URLs | `https?://[^\s,;"'<>]+` | `rg -o 'PATTERN' evidence/proxy.log` |
+| URLs | `https?://[^[:space:],;"'<>]+` | `rg -o "PATTERN" _workspace/raw/logs/proxy.log` |
 | Email addresses | `\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b` | `rg -o 'PATTERN' evidence/*.txt` |
 | SHA256 | `\b[a-fA-F0-9]{64}\b` | `rg -o 'PATTERN' evidence/*.log` |
 | SHA1 | `\b[a-fA-F0-9]{40}\b` | `rg -o 'PATTERN' evidence/*.log` |
@@ -443,7 +443,7 @@ rg -oi '\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b' evidence/proxy.log \
   | tr '[:upper:]' '[:lower:]' | sort -u > domains.txt
 
 # Extract unique URLs from proxy logs
-rg -o 'https?://[^\s,;"'<>]+' evidence/proxy.log | sort -u > urls.txt
+rg -o "https?://[^[:space:],;\"'<>]+" _workspace/raw/logs/proxy.log | sort -u > _workspace/derived/iocs/urls.txt
 
 # Extract all hashes (SHA256, SHA1, MD5)
 rg -o '\b[a-fA-F0-9]{64}\b' evidence/*.log | sort -u > sha256.txt
@@ -613,14 +613,14 @@ rg "$IP" evidence/*.csv evidence/*.log evidence/*.json | sort -t: -k1
 
 ```bash
 USER="jsmith"
-rg -i "$USER" evidence/*.csv evidence/*.log evidence/*.json | sort -t: -k1
+rg -i "$USER" _workspace/raw/logs/ | sort -t: -k1
 ```
 
 ### Recipe 3: Extract All URLs/Domains from Proxy Logs
 
 ```bash
-rg -o 'https?://[^\s,;"'<>]+' evidence/proxy.log | sort -u > proxy_urls.txt
-rg -oi '\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b' evidence/proxy.log | tr '[:upper:]' '[:lower:]' | sort -u > proxy_domains.txt
+rg -o "https?://[^[:space:],;\"'<>]+" _workspace/raw/logs/proxy.log | sort -u > _workspace/derived/iocs/proxy_urls.txt
+rg -oi '\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b' _workspace/raw/logs/proxy.log | tr '[:upper:]' '[:lower:]' | sort -u > _workspace/derived/iocs/proxy_domains.txt
 ```
 
 ### Recipe 4: Phishing URL Click Timeline

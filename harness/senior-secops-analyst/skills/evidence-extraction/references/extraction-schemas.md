@@ -126,7 +126,7 @@ When extraction reveals missing or incomplete data, record each gap:
   "redaction_status": "needs-review",
   "sensitivity": "internal",
   "description": "Full Xberg extraction of prior incident report. Contains text content, metadata, tables.",
-  "parent_evidence_id": "E0015",
+  "parent_evidence_ids": ["E0015"],
   "notes": "Extraction quality: all 12 pages extracted. 3 tables detected. No OCR issues. Document metadata present: author, created date, modified date."
 }
 ```

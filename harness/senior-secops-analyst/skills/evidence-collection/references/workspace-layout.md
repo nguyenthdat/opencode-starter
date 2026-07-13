@@ -57,7 +57,7 @@ _workspace/
 ├── derived/
 │   └── Transformed, normalized, correlated, or enriched outputs.
 │       Each is a new evidence artifact with its own evidence ID
-│       and parent_evidence_id linking to the raw source.
+│       and parent_evidence_ids linking to all raw sources.
 │   ├── iocs/
 │   │   Extracted IOC lists (CSV, JSON). Clearly label defanged vs raw.
 │   ├── timelines/
@@ -80,7 +80,7 @@ _workspace/
 │
 ├── redacted/
 │   └── Shareable versions of evidence with secrets, PII, and sensitive data removed.
-│       Each redacted artifact has parent_evidence_id pointing to the raw original.
+│       Each redacted artifact has parent_evidence_ids pointing to the raw original(s).
 │       Redaction method must be documented in the manifest entry.
 │
 ├── temp/

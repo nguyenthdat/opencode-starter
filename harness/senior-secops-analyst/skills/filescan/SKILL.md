@@ -1,6 +1,6 @@
 ---
 name: filescan
-description: "Submit URLs and files to filescan.io for sandbox analysis. Review detonation results: network behavior, process tree, IOCs, signature matches, and MITRE ATT&CK mapping."
+description: "Look up or submit approved URLs/files to filescan.io and review sandbox behavior, process trees, network activity, IOCs, signatures, and ATT&CK mappings. Use for hash lookup, approved detonation, result refresh, or comparison. Search by hash first; any file/private-URL upload requires explicit disclosure approval."
 compatibility: opencode
 metadata:
   domain: secops
@@ -8,36 +8,30 @@ metadata:
   edition: "2026.07"
 ---
 
-# filescan.io URL / File Analysis
+# filescan.io Analysis
 
-Submit URLs and files to filescan.io for sandbox analysis. Review detonation results.
+Use filescan.io only after applying a data-disclosure gate.
 
-## URL Submission
-1. Submit URL to filescan.io.
-2. Poll for completion.
-3. Review: network connections, HTTP transactions, downloaded files, JS execution, screenshots, signature matches.
+## Disclosure Gate
 
-## File Submission
-1. Submit file or search by hash.
-2. Review: static analysis (file type, strings, imports), dynamic analysis (process tree, network, file system, registry), signatures, MITRE ATT&CK mapping.
+1. Compute the file hash locally and search existing analysis first.
+2. Classify the target for secrets, credentials, internal URLs, customer data, proprietary content, PII, and regulated data.
+3. Require explicit user approval before uploading any file or non-public URL.
+4. Record provider visibility, retention, submission ID, and approval basis.
+5. Do not use another public sandbox as a fallback unless it passes the same gate.
 
-## IOC Extraction
-Extract from report: contacted IPs/domains, dropped file hashes, mutex names, registry keys, HTTP user agents/URLs.
+## Workflow
 
-## Correlation
-1. Submit extracted IOCs to CTI Correlation Analyst.
-2. Check against known benign in company context.
-3. Assess malware family and campaign if identifiable.
+1. Discover available filescan tools and their current schemas.
+2. Reuse an existing analysis by hash or analysis ID when possible.
+3. If approved, submit once and poll within a bounded interval.
+4. Capture static findings, process tree, filesystem/registry effects, network behavior, signatures, screenshots, and ATT&CK mappings.
+5. Extract IOCs, but return enrichment needs as a handoff request rather than calling another agent.
+6. Save raw results and derived IOC lists under `_workspace/` and register them with `evidence-collection`.
+7. Apply `verdict-scoring`; sandbox classification alone does not prove internal execution or impact.
 
-## Output Structure
-1. Submission type and target.
-2. Analysis ID and permalink.
-3. Verdict: Malicious, Suspicious, Benign, Inconclusive.
-4. Key behavioral findings.
-5. Extracted IOCs.
-6. MITRE ATT&CK mapping.
-7. Screenshots (if relevant).
-8. CTI correlation.
+## Output
 
-## Fallback
-If filescan.io unavailable: VirusTotal, urlscan.io, ANY.RUN, Joe Sandbox. For URLs: browser investigation with caution.
+Include target hash/defanged URL, approval and disclosure status, provider, analysis ID/permalink, analysis freshness, canonical decision fields, key behaviors, IOCs, ATT&CK mappings, evidence IDs, and gaps.
+
+On rerun, reuse the analysis ID and report changed or newly observed behavior instead of resubmitting.

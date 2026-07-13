@@ -1,6 +1,6 @@
 ---
 name: alert-triage
-description: "Rapid evidence-driven SOC alert triage for any source (Defender, Elastic, Wiz, email gateway, phishing, vulnerability, credential leak, etc.). Context-first, workspace-aware, specialist-routing-aware. Timebox: ≤30 min per alert. Triggers on: triage alert, investigate alert, SOC alert, security alert, Defender alert, Elastic alert, Wiz finding, phishing alert, vulnerability alert, credential leak alert, suspicious activity alert, FP/TP decision, alert verdict, escalation decision."
+description: "Rapid evidence-driven SOC alert triage for Defender, Elastic, Wiz, email, phishing, vulnerability, credential-leak, and other alerts. Use for alert intake, disposition recommendation, escalation, rule tuning, resume triage, update verdict after new evidence, or partial reassessment. Target 30 minutes; return needs-investigation when mandatory evidence is missing."
 compatibility: opencode
 metadata:
   domain: secops
@@ -65,17 +65,17 @@ Save important alert evidence under `_workspace/`:
 
 ## Verdict Model
 
-Use these verdicts. Never classify with only TP/FP.
+Apply `verdict-scoring`. Use the canonical verdict plus a separate disposition; legacy alert labels map as follows.
 
-| # | Verdict | Meaning |
+| Legacy Label | Canonical Mapping | Meaning |
 |---|---|---|
-| 1 | True Positive — Malicious | Confirmed malicious activity or compromise |
-| 2 | True Positive — Benign | Alert logic matched real behavior, but behavior is authorized/expected |
-| 3 | False Positive | Alert incorrect: bad detection logic, bad parsing, stale IOC, wrong entity mapping |
-| 4 | Suspicious | Evidence suggests risk, but not enough for confirmed malicious |
-| 5 | Needs Investigation | Evidence insufficient or key telemetry missing |
-| 6 | Duplicate / Already Handled | Same case already investigated, contained, or tracked |
-| 7 | Inconclusive | Conflicting evidence or unavailable data prevents reliable classification |
+| True Positive - Malicious | `malicious` + `true-positive` | Confirmed malicious activity or compromise |
+| True Positive - Benign | `benign` + `true-positive` | Detection matched real but authorized/expected behavior |
+| False Positive | contextual verdict + `false-positive` | Detection was wrong because of logic, parsing, stale IOC, or entity mapping |
+| Suspicious | `suspicious` + `needs-investigation` | Risk is credible but compromise is not confirmed |
+| Needs Investigation | `inconclusive` + `needs-investigation` | Evidence is insufficient and can be collected |
+| Duplicate / Already Handled | prior verdict + `duplicate` | Same case is already tracked |
+| Inconclusive | `inconclusive` + appropriate disposition | Evidence is conflicting or unavailable |
 
 ## Severity and Confidence Model
 
@@ -642,9 +642,9 @@ Do not escalate FPs, benign TPs, duplicates, or informational alerts.
 
 **Phase 3:** Defender confirms: SCANNER-01 is performing authenticated vulnerability scans as part of scheduled weekly scan (every Wednesday 02:00-04:00 UTC). Target hosts match scan scope. No successful logins with privileged accounts. No anomalous process behavior.
 
-**Phase 4:** False Positive. Detection logic correctly identified brute-force-like pattern, but the entity is a known authorized scanner performing scheduled work.
+**Phase 4:** True Positive - Benign. Detection logic correctly identified brute-force-like behavior, and context confirms an authorized scheduled scanner.
 
-**Verdict:** False Positive, Severity: Informational, Confidence: High.
+**Verdict:** Benign, Disposition: True Positive, Severity: Informational, Confidence: High.
 
 **Routing:** No escalation. Tune detection: exclude SCANNER-01 from brute-force alerting during scan window (Wednesday 02:00-04:00 UTC).
 

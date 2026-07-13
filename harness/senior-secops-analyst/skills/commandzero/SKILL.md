@@ -1,6 +1,6 @@
 ---
 name: commandzero
-description: "Deep SOC investigation with Command Zero as an autonomous/AI-assisted alert-to-verdict platform. Use for alert investigation, phishing, identity/endpoint compromise, malware execution, cloud/SaaS anomaly, insider risk, lateral movement, privilege escalation, data exfiltration, and multi-source incident triage. CTI is supporting context only; not for simple IOC reputation or CTI lookup."
+description: "Manage CommandZero investigation records and approved remediation lifecycle through its MCP. Use when the user explicitly asks to create, inspect, update, close, or synchronize a CommandZero investigation or remediation. Not the general SecOps orchestrator and not for simple IOC reputation. All create/update/close/remediation operations require explicit approval."
 compatibility: opencode
 metadata:
   domain: secops
@@ -410,7 +410,7 @@ Explain why the final verdict and confidence were selected. Cite evidence IDs. E
 - **Never base verdict only on CTI, reputation, passive DNS, or vendor label.** These are supporting context. They cannot be the basis for a Malicious verdict.
 - **Never hide uncertainty.** State missing evidence, data gaps, confidence impact, and alternate explanations directly.
 - **Never treat lack of evidence as benign.** Benign requires a positive benign explanation (approved change, owner confirmation, known automation, verified expected behavior).
-- **Never perform destructive actions automatically.** `cmdzero_create_remediation` executes real remediation actions. Recommend with justification; execute only when explicitly approved. `cmdzero_create_investigation` creates permanent investigation records.
+- **Never perform persistent actions automatically.** Creating/updating/closing investigations, uploading business context, and executing remediation all change CommandZero state and require explicit user approval immediately before the call. Read-only listing and retrieval may proceed without that approval. Examples below do not waive this gate.
 - **Never skip the organization discovery step.** Always call `cmdzero_list_organizations` before any org-scoped tool.
 - **Keep every investigation auditable and reproducible.** Preserve questions, queries, source systems, timestamps, evidence IDs, tool call references, and rationale.
 - **Separate facts from interpretation.** Label assumptions explicitly. State what was observed vs. what was concluded.

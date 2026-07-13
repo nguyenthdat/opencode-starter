@@ -1,6 +1,6 @@
 ---
 name: cyberchef
-description: "Decode, deobfuscate, and analyze security artifacts using CyberChef via Node.js. URL decoding, Base64, XOR, PowerShell obfuscation analysis, JavaScript deobfuscation, macro deobfuscation, and IOC cleanup recipes."
+description: "Decode and deobfuscate security artifacts with a verified CyberChef installation or equivalent local decoder. Use for URL/Base64/hex/XOR/PowerShell/JavaScript/macro decoding, IOC cleanup, rerun with a saved recipe, or compare decoded layers. Never execute decoded content; keep indicators defanged by default."
 compatibility: opencode
 metadata:
   domain: secops
@@ -8,69 +8,36 @@ metadata:
   edition: "2026.07"
 ---
 
-# CyberChef JS/Node Workflow
+# CyberChef Decoding Workflow
 
-Decode, deobfuscate, and analyze security artifacts using CyberChef through Node.js.
+Decode hostile content as data. Never execute decoded scripts, macros, commands, documents, or binaries.
 
-## Common Operations
+## Preflight
 
-### URL Decoding
-```
-Recipe: URL Decode
-Input: %68%74%74%70%73%3A%2F%2F
-Output: https://
-```
+1. Verify the installed CyberChef package, CLI, or API from its actual help/version output before writing commands. Package interfaces vary; do not assume `npx cyberchef` or `require('cyberchef')` exists.
+2. Hash the input and assign an evidence ID.
+3. Set size and recursion limits to avoid decompression or decoding loops.
 
-### Base64 Decoding
-```
-Recipe: From Base64
-Input: aHR0cHM6Ly9ldmlsLmV4YW1wbGUuY29tL21hbHdhcmU=
-```
+## Workflow
 
-### Multi-Layer Decoding
-```
-Recipe: URL Decode -> From Base64 -> From Hex
-```
+1. Start with the minimum likely operation, such as URL Decode, From Base64, From Hex, or Decode Text UTF-16LE.
+2. Save every exact recipe and tool version.
+3. Inspect each layer before applying another transform.
+4. Extract IOCs, file paths, registry keys, and commands as inert text.
+5. Keep indicators defanged in human-readable output. Refang only into an approved machine-action artifact.
+6. Save output under `_workspace/derived/`, compute its hash, and register parent evidence IDs with `evidence-collection`.
 
-## Analysis Patterns
+## Common Recipes
 
-### Pattern 1: Phishing URL Decoding
-```
-Recipe: URL Decode -> From Base64 -> Find/Replace (%20->space) -> Extract URLs
+```text
+URL Decode
+From Base64 -> Decode text (UTF-16LE)
+URL Decode -> From Base64 -> From Hex
+Extract strings -> From Charcode
 ```
 
-### Pattern 2: Malicious PowerShell
-```
-Recipe: From Base64 -> Decode text (UTF-16LE) -> Find/Replace (Remove null bytes)
-```
-Note: PowerShell Base64 is typically UTF-16LE, not UTF-8.
+`Magic` may suggest transforms, but validate suggestions before accepting them as analysis.
 
-### Pattern 3: IOC Cleanup
-```
-Recipe: Find/Replace (hxxp->http, [.]->., hxxps->https)
-```
+## Output
 
-### Pattern 4: Macro Deobfuscation
-```
-Recipe: Extract strings -> Find/Replace (Chr(->, )->, &->) -> From Charcode
-```
-
-## CyberChef CLI Usage
-```bash
-npx cyberchef --input "base64_string" --recipe "From Base64"
-echo "encoded_data" | npx cyberchef --recipe "From Base64,URL Decode"
-```
-
-## Node.js Usage
-```js
-const chef = require('cyberchef');
-const result = chef.bake('encoded_input', [
-  {op: 'From Base64', args: ['A-Za-z0-9+/=']},
-  {op: 'URL Decode', args: []}
-]);
-```
-
-## Tips
-- Use `Magic` operation for auto-detection of unknown encoding.
-- Try multiple layers — attackers often nest 3-5 layers.
-- After decoding, search output for: IPs, domains, URLs, file paths, registry keys, commands.
+Include input evidence ID/hash, exact recipe, tool/version, output hash/path, extracted indicators, decoding confidence, failed transforms, and safety limits used.

@@ -1,6 +1,6 @@
 ---
 name: browser-investigation
-description: "Browser-based investigation using CloakBrowser MCP, Playwright, Chrome DevTools, and Firefox DevTools. Phishing page analysis, suspicious website reconnaissance, JS deobfuscation, and network traffic capture."
+description: "Capture browser evidence for suspicious websites using CloakBrowser or an approved isolated browser: snapshots, screenshots, DOM/forms, redirects, network requests, and console output. Use for passive phishing-page inspection, rerun capture, or compare page behavior. Not for generic pentesting; interaction, form submission, login, or download requires explicit approval."
 compatibility: opencode
 metadata:
   domain: secops
@@ -8,51 +8,41 @@ metadata:
   edition: "2026.07"
 ---
 
-# Browser-Based Investigation
+# Browser Evidence Capture
 
-Use CloakBrowser MCP, Chrome DevTools, Firefox DevTools, and Playwright for security investigations.
+Use an isolated, ephemeral browser to capture reproducible webpage evidence. This skill is a capture primitive; `phishing-url-analysis` owns phishing interpretation and scoring.
 
-## Tools
+## Safety Gate
 
-### CloakBrowser MCP
-- `browser_navigate` — navigate to URL
-- `browser_snapshot` — accessibility snapshot (preferred over screenshot for structural analysis)
-- `browser_take_screenshot` — full-page or element screenshot
-- `browser_evaluate` — run JS on page (extract forms, links, redirects)
-- `browser_network_requests` — capture all network requests
-- `browser_console_messages` — capture console logs and errors
-- `browser_click`, `browser_type`, `browser_fill_form` — interact with forms
-- `browser_wait_for` — wait for text or time
+1. Confirm an isolated context with no real profile, cookies, credentials, extensions, or corporate session.
+2. Disable automatic downloads and browser persistence.
+3. Start with passive navigation, accessibility snapshot, screenshot, DOM inspection, network capture, and console capture.
+4. Require explicit user approval before clicking a state-changing control, submitting a form, logging in, uploading data, or downloading a file.
+5. Never use real credentials or PII. Never execute downloaded or decoded content.
+6. Defang URLs in user-facing output; preserve originals only in access-controlled raw evidence.
 
-## Investigation Patterns
+## Workflow
 
-### Pattern 1: Phishing Page Analysis
-1. Navigate, wait for JS execution (3-5s).
-2. Full-page screenshot + accessibility snapshot.
-3. Extract: `<form>`, `<script>`, `<iframe>` via `browser_evaluate`.
-4. Submit test credentials, capture POST request.
-5. Check for post-submit redirect.
+1. Record target URL, UTC time, isolation mode, browser/tool version, and approved interaction level.
+2. Navigate and wait only as needed for deterministic rendering.
+3. Capture accessibility snapshot before a screenshot because it preserves inspectable structure.
+4. Extract forms, scripts, iframes, links, redirects, and external resource domains without submitting data.
+5. Capture network requests and console messages.
+6. If approved interaction is necessary, perform the minimum action and record every click, submission, or download.
+7. Save raw captures under `_workspace/raw/browser/` or `_workspace/raw/screenshots/` and register permanent artifacts with `evidence-collection`.
 
-### Pattern 2: Suspicious Website Reconnaissance
-1. Navigate, screenshot.
-2. Check network requests: external domains, tracking pixels, hidden iframes.
-3. Check console: errors, obfuscated logs, crypto miners.
-4. Extract all `<a href>` links.
-5. Check SSL certificate validity.
+## Output
 
-### Pattern 3: JavaScript Deobfuscation
-1. Extract all `<script>` content via `browser_evaluate`.
-2. Pipe to CyberChef for decoding/deobfuscation.
-3. Analyze for: redirects, form exfiltration, keylogging, exploit kit behavior.
+```yaml
+target_url_defanged: string
+tool: string
+isolation: string
+interaction_level: passive | approved-interactive
+actions_performed: []
+artifacts: []
+evidence_ids: []
+observations: []
+limitations: []
+```
 
-### Pattern 4: Network Traffic Capture
-1. `browser_network_requests` for all requests.
-2. Filter: external domains, large POST bodies, unusual User-Agents.
-3. Identify C2 communication (beaconing, periodic POSTs).
-
-## Safety Rules
-- Always use isolated/incognito context.
-- Never use real credentials.
-- Consider SSH SOCKS proxy for additional isolation.
-- Do not download and execute files from browser session.
-- Screenshot and snapshot before interacting.
+If a browser tool is unavailable or isolation cannot be confirmed, return `BLOCKED` for active browsing and recommend passive headers/DNS/CT analysis only.

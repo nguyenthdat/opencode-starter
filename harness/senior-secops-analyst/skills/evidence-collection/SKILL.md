@@ -1,6 +1,6 @@
 ---
 name: evidence-collection
-description: "Systematic evidence collection, preservation, indexing, hashing, and chain-of-reasoning for SecOps investigations. Use for incident investigation, phishing, cloud investigation, SOC alert triage, browser evidence capture, SIEM/Defender/Wiz/Tenable/Cyble/CommandZero outputs, document evidence, screenshots, raw logs, API/MCP responses, timeline/IOC artifacts, and final evidence appendix generation. Triggers on: collect evidence, preserve artifact, record finding, build evidence table, track IOC, reconstruct timeline, document chain-of-custody, generate evidence appendix, gap analysis."
+description: "Create and maintain a SecOps case workspace, evidence manifest, evidence index, hashes, provenance, timeline, IOC artifacts, and evidence appendix. Use when collecting or preserving investigation evidence, recording findings, resuming a case, adding new evidence, rebuilding an appendix, or auditing chain-of-custody. Not for general note-taking."
 compatibility: opencode
 metadata:
   domain: secops
@@ -8,15 +8,15 @@ metadata:
   edition: "2026.07"
 ---
 
-# Evidence Collection and Chain-of-Reasoning
+# Evidence Collection and Chain-of-Custody
 
-Systematically collect, preserve, index, hash, and explain investigation evidence under `_workspace/`. Every artifact is tracked in a manifest, assigned an evidence ID, and referenced in all conclusions.
+Systematically collect, preserve, index, hash, and explain investigation evidence under `_workspace/`. Permanent evidence artifacts are tracked in a manifest, assigned an evidence ID, and referenced in conclusions.
 
 ## Workspace Requirement
 
 **All evidence must be saved under `_workspace/`.** No evidence artifacts — raw output, screenshots, extracted documents, query exports, browser captures, IOC lists, timelines, or derived analysis files — may be stored outside `_workspace/`.
 
-Every artifact written to `_workspace/` must be registered in `_workspace/manifest.jsonl` and listed in `_workspace/evidence-index.md`.
+Register every permanent evidence artifact except `_workspace/README.md`, `_workspace/manifest.jsonl`, `_workspace/evidence-index.md`, `_workspace/run_manifest.json`, and files under `_workspace/temp/`.
 
 ## When to Use
 
@@ -128,7 +128,7 @@ For every piece of evidence, record:
 12. **Confidence**: High, Medium, Low.
 13. **Corroboration**: Any independent supporting evidence IDs.
 14. **Sensitivity / Redaction status**: Whether the evidence contains PII, secrets, or sensitive data.
-15. **Parent evidence ID**: If derived from another artifact, the source evidence ID.
+15. **Parent evidence IDs**: If derived from one or more artifacts, all source evidence IDs.
 
 ## Evidence Table Template
 
@@ -161,7 +161,7 @@ Every artifact saved in `_workspace/` must be recorded in `_workspace/manifest.j
   "redaction_status": "raw-sensitive",
   "sensitivity": "internal",
   "description": "Advanced Hunting query result for failed logins",
-  "parent_evidence_id": null,
+  "parent_evidence_ids": [],
   "notes": ""
 }
 ```
@@ -287,12 +287,19 @@ This skill produces or updates:
 - `_workspace/reports/gaps.md` — gap analysis
 - All raw, extracted, derived, and redacted artifacts under `_workspace/`
 
+## Rerun Rules
+
+- Reuse a workspace only when the case ID and investigation scope match the active run manifest.
+- Append new evidence with new IDs; never recycle an evidence ID.
+- Mark regenerated or replaced artifacts as superseded in the run manifest and preserve their provenance.
+- Version regenerated reports instead of silently replacing prior accepted output.
+
 ## Guardrails
 
 - **Never store evidence outside `_workspace/`.**
 - **Never overwrite raw evidence.** Derived versions go in `_workspace/derived/`.
 - **Never modify original evidence in place.** Copy first, then derive.
-- **Never expose secrets, tokens, passwords, private keys, cookies, or sensitive PII in human-readable reports.** Redact and store originals under `_workspace/redacted/` for sharing.
+- **Never expose secrets, tokens, passwords, private keys, cookies, or sensitive PII in human-readable reports.** Keep approved originals in restricted raw evidence and store shareable copies under `_workspace/redacted/`.
 - **Never delete evidence** unless explicitly approved and logged.
 - **Never claim evidence exists** unless it has been saved, hashed, and registered in the manifest.
 - **Never claim a command or query was run** unless it was actually executed and its output captured.

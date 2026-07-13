@@ -34,7 +34,7 @@ When given a PDF or DOCX file:
    - `raw_or_derived: raw`
    - `original_location`: the original file path or URL
 4. **Extract content** into `_workspace/extracted/` (see Xberg Extraction below).
-5. **Register each extracted artifact** in the manifest with `parent_evidence_id` pointing to the source document.
+5. **Register each extracted artifact** in the manifest with `parent_evidence_ids` containing the source document.
 6. **Create derived IOCs or timelines** only under `_workspace/derived/`, also with parent evidence IDs.
 
 ## Xberg Extraction
@@ -135,7 +135,7 @@ xberg extract doc.pdf --format json --content_format markdown | jq -r '.content'
 1. Copy the incident report to `_workspace/raw/documents/`.
 2. Register as evidence (document artifact type).
 3. Extract with Xberg to `_workspace/extracted/`.
-4. Register extraction output with parent evidence ID.
+4. Register extraction output with parent evidence IDs.
 5. Parse metadata for author, creation date, revision history.
 6. Extract IOCs from the content to `_workspace/derived/iocs/`.
 7. Extract timeline candidates to `_workspace/derived/timelines/`.
@@ -242,7 +242,7 @@ Every extracted artifact must include these fields in the manifest:
 | Field | Description |
 |---|---|
 | `evidence_id` | Unique ID for this extracted artifact |
-| `parent_evidence_id` | Evidence ID of the source document in `_workspace/raw/documents/` |
+| `parent_evidence_ids` | Evidence IDs of source documents in `_workspace/raw/documents/` |
 | `source_tool` | Tool used for extraction (`xberg`, `python-docx`, `pymupdf`, `pdfplumber`) |
 | `command_or_query` | Exact extraction command run |
 | `workspace_path` | Path to the extracted output file |
@@ -299,7 +299,7 @@ Gaps: (unreadable pages, missing attachments, password-protected sections)
 - **Never overwrite source documents** in `_workspace/raw/documents/`. The copy is the golden record.
 - **Never treat OCR or extraction text as perfect.** Always record extraction quality and parsing gaps in the manifest `notes`.
 - **Never expose sensitive PII or secrets in reports.** Redact before including in `_workspace/reports/`. Keep unredacted originals in `_workspace/raw/` or `_workspace/redacted/`.
-- **Always record parent-child evidence relationships.** Every extracted artifact must have `parent_evidence_id`.
+- **Always record parent-child evidence relationships.** Every extracted artifact must have `parent_evidence_ids`.
 - **Prefer structured extraction over screenshots.** Text/tables from Xberg are primary; screenshots of document pages are supplemental.
 - **Preserve original documents unchanged.** The copy in `_workspace/raw/documents/` is immutable after initial save.
 

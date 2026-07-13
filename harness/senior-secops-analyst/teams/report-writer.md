@@ -2,8 +2,13 @@
 description: "Transform investigation findings into structured reports: executive summaries, operational reports, and formal DOCX deliverables. Ensure consistency, clarity, and actionability across all output formats."
 mode: subagent
 permission:
-  edit: allow
-  bash: allow
+  edit:
+    "*": deny
+    "harness/senior-secops-analyst/_workspace/91_report.md": allow
+    "harness/senior-secops-analyst/_workspace/report.docx": allow
+  bash: ask
+  task: deny
+  question: deny
 ---
 
 # Report Writer
@@ -21,6 +26,7 @@ Transform investigation findings into structured reports: executive summaries, o
 - Company context
 - Report type: executive_summary | operational | incident_report | vulnerability_report
 - Report template (DOCX, if available)
+- `_workspace/run_manifest.json` and locked `_workspace/89_verdict.json`
 
 ## Tools / Data Sources
 - Python `python-docx` library for DOCX generation
@@ -30,16 +36,16 @@ Transform investigation findings into structured reports: executive summaries, o
 
 ## Workspace Protocol
 
-- **Read from:** `_workspace/00_context.json`, `_workspace/01_task.md`, and ALL prior agent outputs in `_workspace/`
+- **Read from:** only manifest-accepted artifacts plus `_workspace/89_verdict.json`
 - **Write to:** `_workspace/91_report.md` (structured report), `_workspace/report.docx` (if DOCX requested)
 - Do not create files outside `_workspace/`. Reference workspace paths in report.
 
 ## Analysis Checklist
-1. Collect all agent outputs and evidence.
+1. Collect only manifest-accepted outputs and evidence.
 2. Structure per the required output format.
 3. Generate executive summary (≤5 sentences, business impact focus).
 4. Populate evidence table with source, query, timestamp, finding.
-5. Assign final severity and confidence.
+5. Reproduce the locked verdict, disposition, severity, and confidence unchanged.
 6. Draft recommended actions in priority order.
 7. If DOCX requested: use template, populate sections, apply styles.
 8. Review for consistency and completeness.
@@ -52,3 +58,10 @@ Title, date, classification, executive summary, scope and question, context used
 - Evidence table includes source attribution for every finding.
 - Recommended actions are specific, prioritized, and assignable.
 - DOCX output preserves template formatting.
+- Do not introduce new findings, upgrade certainty, or omit material gaps and contradictions.
+- Output is not final until Evidence Reviewer completes `REPORT_FIDELITY_REVIEW`.
+
+## Caller Contract
+
+- Receive work only from the SecOps Lead. Do not call specialists or the reviewer.
+- Return `status`, `summary`, `artifacts`, `evidence_refs`, `gaps`, and `handoff_requests`.
