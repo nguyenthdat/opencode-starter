@@ -1,7 +1,15 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "build",
-  "instructions": [".opencode/instructions/*", "~/.config/opencode/instructions/*", "~/.opencode/instructions/*"],
+  "instructions": [
+    "~/.opencode/instructions/agent-orchestration.md",
+    "~/.opencode/instructions/harness-skill-mcp-loading.md",
+    "~/.opencode/instructions/tool-routing.md",
+    "~/.opencode/instructions/image-attachment-rule.md",
+    "~/.opencode/instructions/bun-first.md",
+    "~/.opencode/instructions/python-scripting.md",
+    "~/.opencode/instructions/github-code-search.md",
+  ],
   "formatter": true,
   "permission": {
     "edit": "allow",
@@ -16,9 +24,39 @@
     "list": "allow",
     "skill": "allow",
     "read": "allow",
-    "task": "allow",
+    "task": "deny",
+    "doom_loop": "deny",
     "external_directory": "ask",
   },
+  "agent": {
+    "build": {
+      "steps": 32,
+      "permission": {
+        "doom_loop": "deny",
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "general": "allow",
+          "plan": "allow",
+          "search": "allow",
+          "research": "allow",
+          "research-web": "allow",
+          "research-academic": "allow",
+          "research-community": "allow",
+          "research-validator": "allow",
+          "research-synthesizer": "allow",
+          "skill-creator-grader": "allow",
+          "skill-creator-comparator": "allow",
+          "skill-creator-analyzer": "allow",
+        },
+      },
+    },
+    "general": { "steps": 14, "permission": { "task": "deny", "doom_loop": "deny" } },
+    "explore": { "steps": 10, "permission": { "task": "deny", "doom_loop": "deny" } },
+  },
+  "compaction": { "auto": true, "prune": true, "tail_turns": 6 },
+  "tool_output": { "max_lines": 1000, "max_bytes": 32768 },
+  "experimental": { "continue_loop_on_deny": false, "mcp_timeout": 30000 },
   "plugin": ["@ex-machina/opencode-anthropic-auth"],
   "lsp": true,
   "mcp": {
@@ -32,12 +70,20 @@
       "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN}" },
     },
     "sequential-thinking": {
-      "enabled": true,
+      "enabled": false,
       "type": "local",
       "command": ["bunx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
     },
-    "filesystem": { "type": "local", "command": ["bunx", "-y", "@modelcontextprotocol/server-filesystem", "."] },
-    "token-optimizer": { "type": "local", "command": ["bunx", "-y", "token-optimizer-mcp"] },
+    "filesystem": {
+      "enabled": false,
+      "type": "local",
+      "command": ["bunx", "-y", "@modelcontextprotocol/server-filesystem", "."],
+    },
+    "token-optimizer": {
+      "enabled": false,
+      "type": "local",
+      "command": ["bunx", "-y", "token-optimizer-mcp"],
+    },
     "context7": {
       "enabled": true,
       "type": "remote",
@@ -50,12 +96,19 @@
       "url": "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,web_search_advanced_exa",
       "headers": { "x-api-key": "{env:EXA_API_KEY}" },
     },
-    "everything": { "enabled": true, "type": "local", "command": ["bunx", "-y", "@modelcontextprotocol/server-everything"] },
+    "everything": {
+      "enabled": false,
+      "type": "local",
+      "command": ["bunx", "-y", "@modelcontextprotocol/server-everything"],
+    },
     "time": { "enabled": true, "type": "local", "command": ["uvx", "mcp-server-time"] },
     "cloakbrowser": {
       "type": "local",
       "command": ["bunx", "-y", "cloakbrowser-mcp@latest"],
-      "environment": { "PLAYWRIGHT_MCP_OUTPUT_DIR": ".cloakbrowser-artifacts", "PLAYWRIGHT_MCP_HEADLESS": "true" },
+      "environment": {
+        "PLAYWRIGHT_MCP_OUTPUT_DIR": ".cloakbrowser-artifacts",
+        "PLAYWRIGHT_MCP_HEADLESS": "true",
+      },
     },
   },
 }

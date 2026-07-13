@@ -1,6 +1,15 @@
 ---
 description: Post-hoc analyzer for the skill-creator eval workflow. Unblinds blind comparison results, examines both skills and transcripts, and explains why the winner won with actionable improvement suggestions for the loser. Only invoke as part of skill-creator eval runs.
 mode: subagent
+hidden: true
+steps: 10
+permission:
+  edit: allow
+  bash: deny
+  question: deny
+  task: deny
+  webfetch: deny
+  doom_loop: deny
 ---
 
 # Post-hoc Analyzer Agent

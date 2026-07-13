@@ -1,6 +1,15 @@
 ---
 description: Blind comparator for the skill-creator eval workflow. Judges which of two anonymized outputs (A/B) better accomplishes the eval task, based purely on output quality without knowing which skill produced which. Only invoke as part of skill-creator eval runs.
 mode: subagent
+hidden: true
+steps: 10
+permission:
+  edit: allow
+  bash: deny
+  question: deny
+  task: deny
+  webfetch: deny
+  doom_loop: deny
 ---
 
 # Blind Comparator Agent

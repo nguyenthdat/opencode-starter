@@ -1,6 +1,15 @@
 ---
 description: Grader for the skill-creator eval workflow. Evaluates each expectation against an execution transcript and output files, gives pass/fail with evidence, and critiques weak or missing assertions. Only invoke as part of skill-creator eval runs.
 mode: subagent
+hidden: true
+steps: 10
+permission:
+  edit: allow
+  bash: deny
+  question: deny
+  task: deny
+  webfetch: deny
+  doom_loop: deny
 ---
 
 # Grader Agent
