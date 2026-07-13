@@ -5,8 +5,8 @@ description: >-
 compatibility: opencode
 metadata:
   workflow: rust-security-review
-  review-clusters: 15
-  bug-classes: 69
+  review-clusters: "15"
+  bug-classes: "69"
 ---
 
 # Rust Security Review
@@ -323,23 +323,17 @@ For diff review, include a section "Changed files and risk assessment" listing e
 
 ## Large Task Delegation
 
-For full audits of large repositories, delegate focused review areas to subagents using OpenCode's `task` tool:
+Only `senior-rust-engineer/rust-engineer-lead` delegates deep-audit work. A reviewer or worker that loads this skill must never call `task`; it returns a `handoff_request` to the lead instead.
 
-| Subagent | Review scope |
-|---|---|
-| Unsafe reviewer | All unsafe blocks, functions, traits; FFI boundaries; safety doc completeness |
-| Concurrency reviewer | Send/Sync, Mutex/RwLock, atomics, async runtime, cancel safety |
-| Dependency reviewer | Cargo audit, supply chain, yanked crates, duplicate deps, build scripts |
-| API design reviewer | Public API surface, invariants, visibility, trait design |
-| Test reviewer | Test coverage, missing tests, fuzz targets, Miri coverage |
+For a full audit, the lead runs this flat pipeline:
 
-Each subagent should receive:
-- The scope crate/module path
-- The relevant cluster prompt(s) to guide review
-- The finding format to use
-- Instructions to return findings as structured text
+1. Partition exact files or crates into non-overlapping cluster assignments.
+2. Dispatch up to three `senior-rust-engineer/rust-review-worker` calls per wave. Each receives one cluster, exact paths, threat model, relevant cluster prompts, finding format, and a unique `_workspace/rust-engineer/46_audit_worker_<scope>.md` output.
+3. Dispatch `senior-rust-engineer/rust-review-dedup-judge` with only current-run worker artifacts. It writes `47_audit_dedup.md`.
+4. Dispatch `senior-rust-engineer/rust-review-fp-judge` with discovery, threat model, and deduplicated findings. It writes `48_audit_adjudication.md`.
+5. The lead reads all accepted artifacts, resolves gaps, and owns the final report and ship/block decision.
 
-The orchestrating agent deduplicates findings and produces the final report.
+Workers never call each other. Deduplication and adjudication are sequential because each consumes the prior stage.
 
 ## Guardrails
 

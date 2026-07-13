@@ -1,232 +1,240 @@
 ---
 name: rust-orchestrator
-description: "Reference skill for the Senior Rust Engineer harness. Loaded by the Rust Engineer Lead agent (`teams/rust-engineer-lead.md`). Documents workflow phases, agent dispatch patterns, task prompt templates, and error handling. Use when orchestrating the senior-rust-engineer team."
+description: "Coordinates the Senior Rust Engineer harness for Rust features, refactors, debugging, architecture, async, performance, API, security, unsafe/FFI, dependency review, testing, documentation, full audits, reruns, partial reruns, and fix verification. Use when Rust work benefits from named specialist delegation; not needed for a tiny low-risk question or one-line edit."
+compatibility: opencode
+metadata:
+  domain: rust
+  audience: senior-rust-engineer
+  workflow: flat-hybrid-supervisor
 ---
 
 # Senior Rust Engineer Orchestrator
 
-Loaded by the **Rust Engineer Lead** (`teams/rust-engineer-lead.md` — `mode: all`, task permitted) to coordinate the senior-rust-engineer harness team. This skill documents the workflow; the lead agent executes it.
+Coordinate a flat, caller-led Rust workflow. The Rust Engineer Lead is the only task caller. Specialists return outputs and `handoff_requests` to the lead instead of calling one another.
 
-## Execution mode
+## Runtime Topology
 
-Hybrid: parallel discovery → sequential design/implementation → parallel review gates → sequential testing → integration.
+The link script installs agents under `agents/senior-rust-engineer/`. Invoke them as:
 
-## Agent map
+```text
+senior-rust-engineer/<agent-file-name-without-.md>
+```
 
-| Agent | File | Role | Output |
-|---|---|---|---|
-| Rust Architect | `teams/rust-architect.md` | Architecture, crate design, error strategy | `_workspace/01_architecture.md` |
-| Rust Implementer | `teams/rust-implementer.md` | Implementation, applies `rust-coding` | changed files + `_workspace/03_implementation.md` |
-| Rust Reviewer | `teams/rust-reviewer.md` | Correctness, safety, anti-patterns | `_workspace/04_review_findings.md` |
-| Async Rust Specialist | `teams/async-rust-specialist.md` | Tokio, async patterns, cancellation | `_workspace/0X_async_*.md` |
-| Performance Engineer | `teams/performance-engineer.md` | Profiling, benchmarking, optimization | `_workspace/04_perf_findings.md` |
-| Security Reviewer | `teams/security-reviewer.md` | Unsafe audit, supply chain, vulnerabilities | `_workspace/04_security_findings.md` |
-| Testing Engineer | `teams/testing-engineer.md` | Tests, fuzzing, CI gates | `_workspace/05_tests.md` |
-| API Design Reviewer | `teams/api-design-reviewer.md` | Public API ergonomics, semver, naming | `_workspace/04_api_findings.md` |
-| Documentation Maintainer | `teams/docs-maintainer.md` | Docs, examples, maintainability | `_workspace/04_docs_findings.md` |
+Never use `general` plus an injected team file when a named agent exists. Named dispatch preserves role instructions and permission boundaries.
 
-**HARNESS_ROOT** = `harness/senior-rust-engineer`
+```text
+User
+  -> Rust Engineer Lead
+       -> discovery when needed
+       -> design and risk consults
+       -> one production Implementer
+       -> independent review wave(s)
+       -> one targeted fix loop
+       -> documentation maintenance when needed
+       -> testing and final verification
+       -> lead synthesis and delivery
+```
 
-All agent prompts live at `${HARNESS_ROOT}/teams/<name>.md`. Read the agent file before each task spawn and pass its content as the task prompt body, appended with the task-specific context.
+Maximum specialist delegation depth is one. A specialist must never call, route to, or message another specialist.
 
-## Orchestrator responsibility
+## Execution Modes
 
-The Rust Engineer Lead coordinates the team. It is not a mega-agent and should not personally perform specialist work when a dedicated subagent should own it. The lead owns routing, context handoff, conflict resolution, final decisions, and user-facing synthesis.
+Choose the cheapest mode that safely covers the request:
 
-Direct lead-only handling is reserved for tiny, low-risk questions or one-line edits with no public API, unsafe, async, security, dependency, or performance implications. For non-trivial Rust engineering, delegate to the smallest set of specialists that covers the risk.
+| Mode | Use When | Required Flow |
+|---|---|---|
+| Direct | Tiny question or one-line low-risk edit | Lead handles directly; no workspace required |
+| Plan | Architecture, dependency, API, async, or performance design only | Discovery -> relevant design agents -> lead synthesis |
+| Implement | User requests code changes | Discovery -> design as needed -> Implementer -> review -> fix -> docs -> tests -> synthesis |
+| Review | Diff, PR, module, or fix verification | Discovery/diff map -> relevant reviewers -> lead synthesis |
+| Audit | Full security/correctness audit | Discovery -> review workers -> dedup -> adjudication -> lead synthesis |
+| Targeted rerun | User asks to revise or verify prior output | Reuse manifest -> supersede affected artifacts -> rerun only dependent phases |
 
-## Delegation rules
+## Run State
 
-| Task or risk | Required delegation | Context to pass | Expected output |
-|---|---|---|---|
-| Architecture/design review | Rust Architect | User goal, crate layout, key modules, constraints, dependency boundaries | Architecture recommendation, risks, final design decision needed |
-| Implementation planning | Rust Architect first; Rust Implementer for feasibility and code changes | Architecture artifact, target files, acceptance criteria, protected files | Implementation plan or changed files, verification status, final recommendation |
-| Unsafe code review | Security Reviewer; Rust Reviewer for idiomatic correctness | Unsafe blocks/functions, FFI boundaries, invariants, tests, threat model | BLOCKER/WARNING/INFO findings and safety recommendation |
-| Async/concurrency review | Async Rust Specialist; Security Reviewer for atomics/manual `Send`/`Sync` or shared mutable state | Async call graph, runtime assumptions, locks/channels/tasks, cancellation requirements | Concurrency hazards, runtime strategy, test scenarios, final recommendation |
-| Performance optimization | Performance Engineer; Rust Architect for design-level bottlenecks | Hot paths, benchmarks/profiles, target metrics, changed files | Measured/proposed optimizations, tradeoffs, final recommendation |
-| API design | API Design Reviewer; Rust Architect for public type/trait design | Public API diff, semver expectations, feature flags, docs expectations | API findings, semver impact, accept/change recommendation |
-| Testing strategy | Testing Engineer | Architecture, implementation notes, review findings, edge cases, invariants | Test plan, test changes, command output, remaining gaps |
-| Security review | Security Reviewer | Trust boundaries, untrusted inputs, auth/secrets, dependencies, unsafe/FFI, diff | Vulnerability findings, severity, ship/block recommendation |
-| Dependency/crate review | Rust Architect + Security Reviewer; Performance Engineer if compile time/binary size matters | `Cargo.toml`, `Cargo.lock`, features, alternatives, licensing/security constraints | Dependency decision, supply-chain risks, maintenance status, final recommendation |
-| Documentation review | Documentation Maintainer; API Design Reviewer for public API wording/naming | Public items, README/docs paths, examples, doc-test expectations | Missing docs, suggested text, doc readiness recommendation |
+Use `_workspace/rust-engineer/` in the target project. Before delegation:
 
-Routing defaults:
+1. No workspace: create a new run ID and manifest.
+2. Existing workspace plus related follow-up: keep the run ID, mark replaced artifacts `SUPERSEDED`, and preserve unaffected accepted artifacts.
+3. Existing workspace plus unrelated task: archive the directory with a UTC timestamp, then initialize a fresh run.
 
-- Always include Rust Reviewer before final approval of non-trivial code changes.
-- Always include Testing Engineer before claiming a code change is complete unless the task is explicitly review-only or planning-only.
-- Include Security Reviewer for untrusted input, `unsafe`, FFI, deserialization, filesystem path handling, credentials, dependency changes, or supply-chain questions.
-- Include Async Rust Specialist for `.await`, Tokio, channels, locks, tasks, cancellation, atomics in async paths, or concurrency design.
-- Include API Design Reviewer for any `pub` API, trait, type, feature flag, semver, error type, or user-facing naming change.
-- Include Documentation Maintainer when public items, README, examples, or docs are created or changed.
-- If a relevant specialist is skipped due to low risk, record the reason in `_workspace/00_task.md`.
+`run_manifest.json` must record:
+
+- `run_id`, `mode`, `objective`, `scope`, `constraints`, and acceptance criteria.
+- Agent dispatches with task IDs, exact inputs, expected output, and status.
+- Artifact path, producer, status (`PLANNED`, `COMPLETE`, `PARTIAL`, `BLOCKED`, `SUPERSEDED`), and verification evidence.
+- Intentional specialist skips and rationale.
+
+The manifest is the current-run allowlist. Do not ask agents to glob or infer which historical artifacts are current.
+
+## Routing Matrix
+
+| Signal | Required Owner | Add When |
+|---|---|---|
+| Crate/module boundary, core type/trait, error taxonomy, dependency choice | `rust-architect` | Always for broad refactors or new subsystem design |
+| Production code requested | `rust-implementer` | Exactly one normal-pipeline production writer |
+| Non-trivial code or diff | `rust-reviewer` | Always before implementation approval |
+| `.await`, Tokio, tasks, channels, locks, cancellation, concurrency | `async-rust-specialist` | Design consult before implementation; review consult after when risk remains |
+| `unsafe`, FFI, untrusted input, deserialization, paths, secrets, auth, dependency changes | `security-reviewer` | Add `rust-reviewer` for general correctness |
+| Public `pub` surface, traits, error types, features, semver, user-facing naming | `api-design-reviewer` | Add Architect when public type design changes |
+| Hot path, latency, throughput, memory, binary size, compile time | `performance-engineer` | Add Architect for structural optimization |
+| Public items, examples, README, package metadata | `docs-maintainer` | Run after code review/fix so docs describe stable code |
+| Code or test behavior changed | `testing-engineer` | Always before claiming implementation complete |
+| Whole-repo or high-depth security/correctness audit | `rust-review-worker` -> `rust-review-dedup-judge` -> `rust-review-fp-judge` | Lead owns every stage; no nested calls |
+
+Use only matching agents. Record low-risk skips in `01_task.md` and final coverage.
+
+## Dispatch Budget
+
+- Run no more than three specialist calls in one parallel wave.
+- Parallelize only read-only or disjoint work with the same stable input snapshot.
+- Never run two production writers concurrently on overlapping files.
+- Sequence Architect before Implementer when design decisions affect implementation.
+- Sequence Implementer before reviewers, fixes before re-review, Docs before final Testing, and dedup before adjudication.
+- Reuse the same task ID for one narrow retry. Do not replace one failed call with an expanding chain of agents.
 
 ## Workflow
 
-Use the full implementation pipeline only when the user asks for code changes. For planning-only, review-only, audit-only, or documentation-only tasks, run only the relevant phases and record skipped phases in `_workspace/00_task.md`.
+### Phase 0: Intake and Discovery
 
-### Phase 0: Context check
+1. Classify mode, scope, acceptance criteria, MSRV/edition, compatibility constraints, protected files, and required gates.
+2. Detect risk flags from the routing matrix.
+3. Inspect `Cargo.toml`, `Cargo.lock`, crate layout, relevant source, tests, and the current diff. Use `explore` only when bounded discovery is cheaper than direct inspection.
+4. Write `01_task.md` and `10_discovery.md`; initialize the manifest before specialist dispatch.
 
-1. Check whether `_workspace/` exists.
-2. Decide:
-   - No `_workspace/` → initial run, continue to Phase 1.
-   - `_workspace/` exists + revision request → targeted rerun of affected phases only.
-   - `_workspace/` exists + new task → archive old workspace as `_workspace_{YYYYMMDD_HHMMSS}/`, create fresh `_workspace/`.
-3. If targeted rerun, include prior artifact paths and user feedback in specialist task prompts.
+### Phase 1: Design and Consults
 
-### Phase 1: Understand the task
+Dispatch Architect when structure or contracts may change. Dispatch Async, API, Security, or Performance specialists only for matching risks.
 
-1. Parse the user request. Identify scope: new feature, refactor, bug fix, optimization, audit.
-2. Determine which agents are needed from the delegation rules above. Choose the smallest sufficient specialist set; do not default to every agent.
-3. Explore the codebase with a `task` subagent (subagent_type `explore`):
-   - Read `Cargo.toml`, key modules, existing public API, test structure.
-   - Return: crate structure, dependencies, existing patterns, key types.
-4. Create `_workspace/` directory.
-5. Save task analysis to `_workspace/00_task.md`.
+Independent design consults may share a wave after discovery. Architect owns the integrated architecture artifact; the lead resolves conflicts and records accepted constraints before implementation.
 
-### Phase 2: Architecture
+Gate: `20_architecture.md` must state affected boundaries, key types/traits, error strategy, dependency decisions, compatibility constraints, risks, and implementation acceptance criteria.
 
-**Mode:** Sequential (depends on Phase 1 exploration).
+### Phase 2: Implementation
 
-Run this phase for design, implementation planning, dependency selection, refactors, public API changes, or any change that affects crate/module boundaries. Skip it for narrow code review or documentation-only tasks unless architecture risk is part of the request.
+Dispatch `rust-implementer` with accepted design artifacts, exact target files, acceptance criteria, protected paths, and required commands. The Implementer is the sole production-code writer in the normal pipeline.
 
-1. Read `${HARNESS_ROOT}/teams/rust-architect.md`.
-2. Spawn a `task(subagent_type="general")` with the Architect prompt + task context + codebase findings.
-3. Architect returns `_workspace/01_architecture.md`.
-4. Gate: architecture doc must specify crate structure, key types/traits, error strategy, dependency choices, and risks.
+If it returns a `handoff_request`, the lead decides whether to pause and consult a specialist. The Implementer must not call that specialist directly.
 
-### Phase 3: Implementation
+Gate: changed files are listed in `30_implementation.md`; scoped formatting and compilation checks pass before review, or exact failures are marked blocking.
 
-**Mode:** Sequential with optional parallel specialist consultation.
+### Phase 3: Review Waves
 
-Run this phase only when code changes are requested or when the user explicitly asks for an implementation plan from the Implementer. Skip it for review-only or audit-only tasks.
+Freeze the implementation snapshot and dispatch up to three independent reviewers per wave. Every reviewer receives the same diff/commit, exact files, architecture artifact, implementation artifact, and risk-specific questions.
 
-1. If async is involved, first consult Async Specialist:
-   - Read `${HARNESS_ROOT}/teams/async-rust-specialist.md`.
-   - Spawn `task(subagent_type="general")` with async prompt + architecture doc.
-   - Output: `_workspace/03_async_design.md`.
-2. Read `${HARNESS_ROOT}/teams/rust-implementer.md`.
-3. Spawn `task(subagent_type="general")` with Implementer prompt + architecture doc + task description.
-4. Implementer returns: changed files, `cargo check`/`cargo clippy` output, `_workspace/03_implementation.md`.
-5. Gate: `cargo check` must pass. `cargo clippy` must have zero warnings. If not, ask Implementer to fix before proceeding.
+Normalize findings as:
 
-### Phase 4: Review gates
+- `BLOCKER`: must be fixed before completion.
+- `WARNING`: material but may be accepted with explicit rationale.
+- `INFO`: non-blocking improvement or observation.
 
-**Mode:** Parallel fan-out. Launch all applicable reviewers in one turn.
+Security audit outputs may retain Critical/High/Medium/Low severity; map confirmed Critical/High to BLOCKER for implementation completion.
 
-For each applicable reviewer, read its team file, then spawn a `task(subagent_type="general")` with the agent prompt + diff or target files plus the architecture doc when present.
+### Phase 4: Targeted Fix and Re-review
 
-| Reviewer | When to include |
-|---|---|
-| Rust Reviewer | Non-trivial code changes or code-review tasks |
-| API Design Reviewer | Public API changes |
-| Security Reviewer | `unsafe`, FFI, or handling untrusted input |
-| Performance Engineer | Hot-path changes or explicit performance goals |
-| Async Specialist | Async code (if not already consulted in Phase 3) |
-| Docs Maintainer | New/changed public items |
+1. Lead deduplicates findings and writes `80_synthesis.md` with owner and acceptance criteria for each required fix.
+2. Dispatch the Implementer once with only accepted BLOCKER fixes.
+3. Re-dispatch only reviewers whose findings were affected, using their prior task IDs where possible.
+4. If blockers remain after one fix loop, stop and report options instead of cycling indefinitely.
 
-Each reviewer writes findings to `_workspace/04_{reviewer}_findings.md`.
+### Phase 5: Documentation
 
-Gate: collect all findings. Categorize:
-- **BLOCKER:** Must fix before proceeding. Send back to Implementer.
-- **WARNING:** Should fix. Record in summary, proceed.
-- **INFO:** Consider. Record, no action required.
+When public items or user-facing behavior changed, dispatch Docs Maintainer after production fixes. It may edit documentation and rustdoc only. Sequence this before Testing so doctests are part of final verification.
 
-If blockers exist, return to Phase 3 with findings. Limit to one revision loop. If blockers remain after retry, report to user with options.
+### Phase 6: Testing and Final Verification
 
-### Phase 5: Testing
+Dispatch Testing Engineer with stable code, accepted findings, changed files, invariants, and docs artifact. It may add or modify tests and test infrastructure, then run the scoped completion commands.
 
-**Mode:** Sequential (depends on reviewed code being final).
+The lead verifies command evidence and records any unavailable or intentionally skipped gate. Do not convert a proposed command into a passed result.
 
-Run this phase when code or test strategy changed. For planning-only or review-only tasks, ask Testing Engineer for a strategy artifact instead of modifying tests.
+### Phase 7: Synthesis and Delivery
 
-1. Read `${HARNESS_ROOT}/teams/testing-engineer.md`.
-2. Spawn `task(subagent_type="general")` with Testing Engineer prompt + changed files + architecture doc + review findings (for edge cases to test).
-3. Testing Engineer writes: new/modified tests, `cargo test` output, `_workspace/05_tests.md`.
-4. Gate: `cargo test` must pass. If not, fix tests or flag as incomplete.
+Read all manifest-accepted artifacts. Resolve conflicts using this priority:
 
-### Phase 6: Final summary
+1. Soundness and security.
+2. Correctness and data integrity.
+3. Public API and semver.
+4. Measured performance and resource bounds.
+5. Maintainability, documentation, and style.
 
-**Mode:** Primary agent integration.
+Write `90_final.md`, update the manifest, and deliver the result. Prefer measured evidence over speculation and preserve unresolved disagreement or uncertainty.
 
-1. Read all `_workspace/` artifacts.
-2. Produce final summary inline. Include:
-   - What was done (brief).
-   - Changed files.
-   - Review findings summary (total, by severity, resolved/unresolved).
-   - Test results.
-   - Risks and tradeoffs.
-   - Next steps.
-3. Preserve `_workspace/` for audit and reruns.
+## Deep Audit Pipeline
 
-## Task prompt template
+Use this only for full audits or large high-risk scopes:
 
-For each specialist spawn, the prompt must follow this structure. This is the standard subagent call protocol; keep every field present.
+1. Partition review clusters by non-overlapping risk area or crate. Dispatch up to three `rust-review-worker` calls per wave, each with an exact scope and unique artifact path `46_audit_worker_<scope>.md`.
+2. Read worker artifacts and reject evidence-free findings before aggregation.
+3. Dispatch `rust-review-dedup-judge` with only current-run worker artifacts. It conservatively merges exact duplicates into `47_audit_dedup.md`.
+4. Dispatch `rust-review-fp-judge` with the threat model, discovery artifact, and deduplicated findings. It verifies code and reachability, then writes `48_audit_adjudication.md`.
+5. Lead owns the final ship/block decision. The adjudicator does not dispatch fixes or other agents.
+
+## Task Contract
+
+Every specialist call must include:
 
 ```text
-{Agent prompt body from teams/<name>.md}
-
-## Subagent call
-**Task objective:** {specific, measurable outcome for this specialist}
-**Relevant files/paths:** {source files, Cargo manifests, docs, tests, _workspace artifacts}
-**Context to read first:** {_workspace/00_task.md, prior specialist artifacts, diff summary, command output}
-**Constraints:** {MSRV, edition, semver, performance targets, compatibility, no-touch files, user preferences}
-**Expected output format:** {artifact path plus required sections/table}
-**Risks to check:** {specialist-specific risks, edge cases, threat model, perf/correctness traps}
-**Verification to run or assess:** {commands, static checks, benchmark/test expectations, or explain why not run}
-**Final recommendation required:** {ship/block/change/request-info with one-paragraph rationale}
-
-## Return to orchestrator
-- Summary of findings or changes
-- Artifact path written
-- Changed files, if any
-- Verification output or reason verification was not run
-- BLOCKER/WARNING/INFO findings, if reviewing
-- Final recommendation: ship, block, change, or request-info
-- Risks, uncertainty, and follow-up questions
+Agent: senior-rust-engineer/<name>
+Run ID: <id>
+Mode: <plan|implement|review|audit|targeted-rerun>
+Objective: <one measurable specialist outcome>
+Scope: <exact files, modules, diff, or crate>
+Read first: <manifest-listed artifact paths>
+Constraints: <MSRV, edition, semver, compatibility, targets, protected paths>
+Edit scope: <none|production paths|test paths|documentation paths|artifact only>
+Output artifact: _workspace/rust-engineer/<unique file>
+Acceptance criteria: <objective checks>
+Risks to assess: <specialist-specific list>
+Verification: <commands or static checks; state why if not run>
 ```
 
-Prompt handoff rules:
+Require this return envelope:
 
-- Pass concrete file paths instead of broad directory names whenever possible.
-- Pass prior artifacts by path, not by re-summarizing them, unless the artifact is short.
-- For review tasks, include the diff or changed-file list plus architecture and implementation artifacts.
-- For planning tasks, include constraints and acceptance criteria before asking for design options.
-- Require a final recommendation from every specialist; the lead should not infer it from raw notes.
+```text
+status: COMPLETE | PARTIAL | BLOCKED
+summary: <concise outcome>
+artifact: <path written>
+changed_files: <exact paths or none>
+findings: <BLOCKER/WARNING/INFO counts or none>
+verification: <commands and outcomes or not-run reason>
+handoff_requests:
+  - agent: <recommended named agent>
+    objective: <narrow task>
+    paths: <exact inputs>
+    reason: <why owner expertise is needed>
+    blocking: true | false
+recommendation: ship | change | block | request-info
+uncertainty: <gaps and assumptions>
+```
 
-## Synthesis protocol
+An empty `handoff_requests` list is valid. A handoff request is advice to the lead, not permission for nested delegation.
 
-After subagents return, the lead integrates their outputs rather than concatenating them.
-
-1. Compare findings by file, subsystem, and risk area. Deduplicate repeated issues while preserving the strongest rationale.
-2. Resolve conflicts using this priority order: soundness/security, correctness, public API/semver, data loss, performance, maintainability, documentation, style.
-3. Prefer measured evidence over speculation. Benchmark data beats guessed performance concerns; soundness/security blockers override API or performance approval.
-4. Identify uncertainty explicitly: missing context, commands not run, incomplete specialist coverage, assumptions, or user decisions needed.
-5. Convert findings into actionable next steps with exact files, owner role, required command, and acceptance criteria.
-6. Assign ownership where useful: Implementer fixes code, Architect revises design, Security Reviewer re-checks unsafe/supply-chain fixes, Async Specialist re-checks concurrency, Testing Engineer adds coverage, Docs Maintainer updates docs.
-7. Decide the final state: proceed, implement with constraints, request changes, block, or ask the user for a decision. Include why.
-
-Final synthesis must include:
-
-- Decision: proceed, plan, implemented, blocked, or needs user input.
-- Specialist coverage: called agents and why; relevant agents intentionally skipped and why.
-- Key findings: BLOCKER/WARNING/INFO counts and highest-risk items.
-- Conflict resolution: disagreements and the lead's resolution.
-- Action plan or completion summary: ordered, owned steps.
-- Verification: commands run or required next commands.
-- Residual risk and uncertainty.
-
-## Error handling
+## Failure Handling
 
 | Situation | Response |
 |---|---|
-| One reviewer fails | Retry once with same prompt. If fails again, mark that review area as incomplete in summary. |
-| Implementer `cargo check` fails | Return to Implementer with error output. Two attempts max. |
-| Blocker findings after retry | Report to user with blockers, severity, and options. |
-| Multiple critical failures | Stop, report failures, ask user before continuing. |
-| Ambiguous requirements | List assumptions made. Flag decisions needing user input. |
+| Specialist fails or returns thin output | Retry once with same task ID, narrower scope, and explicit missing acceptance criteria |
+| Retry fails | Mark artifact `PARTIAL` or `BLOCKED`; continue only if safe and disclose coverage gap |
+| Implementer check fails | Return exact errors once; do not enter an open-ended fix loop |
+| Reviewer disagreement | Lead checks code and evidence, applies priority order, records resolution |
+| Required tool unavailable | Record attempted command and error; use a safe scoped alternative or lower confidence |
+| Most critical calls fail | Stop and ask the user rather than claiming partial work is complete |
+| Requirements require a product/semver decision | Ask the user when no safe reversible default exists |
 
-## Follow-up triggers
+## Completion Gate
 
-- rerun, run again, update, revise, improve, fix, sync, audit
-- partial rerun, only redo architecture, only redo review, only redo tests
-- based on previous output, improve the last result, fix the review findings
+For implementation mode, deliver complete only when:
+
+- Manifest inputs and accepted artifacts belong to the current run.
+- Required specialists are `COMPLETE`, or accepted `PARTIAL` status and impact are explicit.
+- No unresolved BLOCKER or confirmed Critical/High finding remains.
+- Relevant formatting, compilation, lint, test, and doctest commands pass.
+- Public API documentation and regression tests match the final code.
+- The lead reports intentional skips, unavailable tools, and residual risk.
+
+For plan, review, and audit modes, do not require implementation-only commands; require evidence, scope coverage, and an explicit final recommendation instead.
+
+## Dry Runs
+
+- Normal path: async public API feature -> discovery -> Architect plus Async/API consults -> Implementer -> correctness/API/async reviews -> targeted fix -> Docs -> Testing -> final.
+- Failure path: Security Reviewer unavailable -> one narrow retry -> mark security artifact partial -> block completion if unsafe/FFI is in scope; otherwise disclose reduced coverage and confidence.

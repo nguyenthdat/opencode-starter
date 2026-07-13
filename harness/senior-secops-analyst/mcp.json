@@ -9,11 +9,24 @@
     }
   },
   "microsoft.docs": { "type": "remote", "url": "https://learn.microsoft.com/api/mcp" },
-  "playwright": { "type": "local", "command": ["bunx", "@playwright/mcp@latest", "--browser", "chrome"] },
-  "chrome.devtools": { "type": "local", "command": ["bunx", "chrome-devtools-mcp@latest", "--autoConnect", "--no-usage-statistics"] },
+  "playwright": {
+    "type": "local",
+    "command": ["bunx", "@playwright/mcp@latest", "--browser", "chrome"]
+  },
+  "chrome.devtools": {
+    "type": "local",
+    "command": ["bunx", "chrome-devtools-mcp@latest", "--autoConnect", "--no-usage-statistics"]
+  },
   "firefox.devtools": {
     "type": "local",
-    "command": ["bunx", "-y", "@mozilla/firefox-devtools-mcp@latest", "--headless", "--viewport", "1280x720"],
+    "command": [
+      "bunx",
+      "-y",
+      "@mozilla/firefox-devtools-mcp@latest",
+      "--headless",
+      "--viewport",
+      "1280x720"
+    ],
     "environment": { "START_URL": "about:blank" }
   },
   "filescan": { "type": "local", "command": ["filescan-mcp"] },

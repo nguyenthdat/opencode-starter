@@ -1,6 +1,6 @@
 ---
 name: rust-coding
-description: "Comprehensive, idiomatic Rust guidance for the 2024 edition (Rust 1.85+): 179 prioritized rules across 14 categories plus edition-2024 migration. Use when writing, reviewing, refactoring, optimizing, or debugging Rust (.rs, Cargo.toml). Covers ownership & borrowing, error handling (thiserror/anyhow), async (tokio), API design, memory & performance optimization, type safety, testing, and anti-patterns, plus edition-2024 specifics: resolver 3, RPIT precise capturing (use<>), unsafe extern blocks, unsafe(...) attributes, static_mut_refs, and prelude additions. For pattern selection see design-patterns; for deep test/debug strategy see testing-and-debugging."
+description: "Comprehensive, idiomatic Rust guidance for the 2024 edition (Rust 1.85+): 179 prioritized rules across 14 categories plus edition-2024 migration. Use when writing, reviewing, refactoring, optimizing, or debugging Rust (.rs, Cargo.toml). Covers ownership and borrowing, error handling (thiserror/anyhow), async (tokio), API design, memory and performance optimization, type safety, testing, anti-patterns, resolver 3, RPIT precise capturing, unsafe extern blocks, unsafe attributes, static_mut_refs, and prelude additions."
 compatibility: opencode
 metadata:
   domain: rust
