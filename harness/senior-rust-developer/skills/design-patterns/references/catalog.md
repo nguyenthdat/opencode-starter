@@ -10,7 +10,7 @@ Use this catalog after establishing a concrete design pressure. The Rust form is
 | Builder | Construction has many optional fields, ordered steps, validation, or multiple outputs from one recipe. | Consuming or mutable builder; `build(self) -> Result<T, E>`; associated output type for genuinely different products; typestate only when compile-time step enforcement earns its complexity. | Fluent setters alone are not necessarily Builder. Do not hide missing required fields behind production `expect`; validate and return typed errors. |
 | Factory Method | Shared workflow must defer creation of one product to an implementation. | Trait method, generic constructor function, associated type, or enum-based factory function. | Prefer `new`, `TryFrom`, or a plain function for simple selection. Verify the factory abstraction has multiple real creation policies. |
 | Prototype | Callers need independent copies without knowing concrete construction details. | `Clone` or explicit `clone_from`; document deep versus shared clone semantics. | Cloning `Arc`, `Rc`, handles, file descriptors, or caches may share state rather than duplicate it. Make cost and independence explicit. |
-| Singleton | A process-wide resource truly has one initialization or identity. | Prefer explicit dependency injection. For unavoidable globals use `OnceLock`/`LazyLock` for one-time initialization and safe synchronization for mutation. | Global state harms modularity and tests. Never use `static mut`; define initialization failure, lock poisoning, shutdown, and test reset strategy. |
+| Singleton | A process-wide resource truly has one initialization or identity. | Prefer explicit dependency injection. For unavoidable globals use `OnceLock`/`LazyLock` for one-time initialization and safe synchronization for mutation. | Global state harms modularity and tests. Never use `static mut`; define initialization failure, lock poisoning, and shutdown. Because one-time cells do not provide process-wide reset, keep resettable test state injected or use process isolation. |
 
 ## Structural Patterns
 
@@ -43,7 +43,7 @@ Use this catalog after establishing a concrete design pressure. The Rust form is
 
 | Pressure | First Choice | Escalate When |
 |---|---|---|
-| Closed alternatives | `enum` + `match` | External/runtime variants require `dyn Trait` |
+| Closed alternatives | `enum` + `match` | Open/external or stored heterogeneous implementations require `dyn Trait` |
 | Inject one operation | Closure or function | Stateful/open algorithms justify Strategy |
 | Construct one validated value | `new`, `TryFrom`, constructor function | Optional steps or multiple recipes justify Builder/Factory |
 | Wrap one dependency | Newtype or generic wrapper | Runtime wrapper stacks justify Decorator/Proxy trait objects |
