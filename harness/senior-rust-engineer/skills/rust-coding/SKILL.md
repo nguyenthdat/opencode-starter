@@ -300,7 +300,7 @@ For the authoritative, complete list, consult the official Rust Edition Guide (2
 ```toml
 [package]
 edition = "2024"        # Rust 1.85+; enables the v3 resolver
-rust-version = "1.85"   # declare your MSRV
+rust-version = "1.97"   # declare your MSRV
 
 [profile.release]
 opt-level = 3
