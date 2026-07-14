@@ -167,5 +167,6 @@
     },
     "time": { "type": "local", "command": ["uvx", "mcp-server-time"] },
     "token-optimizer": { "type": "local", "command": ["bunx", "-y", "token-optimizer-mcp"] },
+    "svelte": { "type": "remote", "url": "https://mcp.svelte.dev/mcp" },
   },
 }

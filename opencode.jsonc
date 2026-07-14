@@ -4,7 +4,7 @@
   "instructions": ["~/.opencode/instructions/*", ".opencode/instructions/*"],
   "formatter": true,
   "provider": {
-    "openai": { "options": { "headerTimeout": 60000, "timeout": 600000, "chunkTimeout": 60000 } },
+    "openai": { "options": { "headerTimeout": 99999, "timeout": 999999, "chunkTimeout": 99999 } },
   },
   "permission": {
     "edit": "allow",
