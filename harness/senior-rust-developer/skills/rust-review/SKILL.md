@@ -323,14 +323,14 @@ For diff review, include a section "Changed files and risk assessment" listing e
 
 ## Large Task Delegation
 
-Only `senior-rust-engineer/rust-engineer-lead` delegates deep-audit work. A reviewer or worker that loads this skill must never call `task`; it returns a `handoff_request` to the lead instead.
+Only `senior-rust-developer/rust-devloper-lead` delegates deep-audit work. A reviewer or worker that loads this skill must never call `task`; it returns a `handoff_request` to the lead instead.
 
 For a full audit, the lead runs this flat pipeline:
 
 1. Partition exact files or crates into non-overlapping cluster assignments.
-2. Dispatch up to three `senior-rust-engineer/rust-review-worker` calls per wave. Each receives one cluster, exact paths, threat model, relevant cluster prompts, finding format, and a unique `_workspace/rust-engineer/46_audit_worker_<scope>.md` output.
-3. Dispatch `senior-rust-engineer/rust-review-dedup-judge` with only current-run worker artifacts. It writes `47_audit_dedup.md`.
-4. Dispatch `senior-rust-engineer/rust-review-fp-judge` with discovery, threat model, and deduplicated findings. It writes `48_audit_adjudication.md`.
+2. Dispatch up to three `senior-rust-developer/rust-review-worker` calls per wave. Each receives one cluster, exact paths, threat model, relevant cluster prompts, finding format, and a unique `_workspace/rust-engineer/46_audit_worker_<scope>.md` output.
+3. Dispatch `senior-rust-developer/rust-review-dedup-judge` with only current-run worker artifacts. It writes `47_audit_dedup.md`.
+4. Dispatch `senior-rust-developer/rust-review-fp-judge` with discovery, threat model, and deduplicated findings. It writes `48_audit_adjudication.md`.
 5. The lead reads all accepted artifacts, resolves gaps, and owns the final report and ship/block decision.
 
 Workers never call each other. Deduplication and adjudication are sequential because each consumes the prior stage.

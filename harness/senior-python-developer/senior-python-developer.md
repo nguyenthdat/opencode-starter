@@ -1,4 +1,4 @@
-# Harness Team: Senior Python Engineer
+# Harness Team: Senior Python Developer
 
 ## Goal
 
@@ -6,13 +6,13 @@ Production-grade Python engineering with multi-agent architecture, implementatio
 
 ## Agents
 
-**Lead:** Python Engineer Lead (`teams/python-engineer-lead.md`, mode: `all`) orchestrates the team, classifies tasks, routes to specialists via standardized call protocol, synthesizes subagent outputs, runs quality gates, and produces final recommendations with risk assessment. Always loads `python-orchestrator` skill. **Never implements or reviews directly — delegates all specialized work.**
+**Lead:** Python Engineer Lead (`teams/python-devloper-lead.md`, mode: `all`) orchestrates the team, classifies tasks, routes to specialists via standardized call protocol, synthesizes subagent outputs, runs quality gates, and produces final recommendations with risk assessment. Always loads `python-orchestrator` skill. **Never implements or reviews directly — delegates all specialized work.**
 
-**Specialists (defined in `harness/senior-python-engineer/teams/`):**
+**Specialists (defined in `harness/senior-python-developer/teams/`):**
 
 | Agent | File | Mode | Responsibility |
 |---|---|---|---|
-| Python Engineer Lead | `teams/python-engineer-lead.md` | `all` | Orchestration, task classification, dispatch, synthesis, quality gates, final recommendation |
+| Python Engineer Lead | `teams/python-devloper-lead.md` | `all` | Orchestration, task classification, dispatch, synthesis, quality gates, final recommendation |
 | Python Architect | `teams/python-architect.md` | `subagent` | Module design, dependency graphs, error taxonomies, interface contracts, project layout |
 | Python Implementer | `teams/python-implementer.md` | `subagent` | Production Python code, applies `python-coding` skill, type hints, structured logging |
 | Python Reviewer | `teams/python-reviewer.md` | `subagent` | Correctness, typing, error handling, anti-patterns, security, async review |
@@ -45,7 +45,7 @@ For Python development work that benefits from multi-agent workflow — new feat
 
 ## Lead Agent Protocols
 
-The Lead agent uses three core protocols (defined in full in `teams/python-engineer-lead.md`):
+The Lead agent uses three core protocols (defined in full in `teams/python-devloper-lead.md`):
 
 1. **Routing Table** — Maps every Python engineering task type to the correct primary and supporting agents.
 2. **Standard Subagent Call Protocol** — Every `task` call includes: task objective, context (files/paths/artifacts), runtime environment, constraints, expected output format, risks to check, and final recommendation requirement.
@@ -128,4 +128,4 @@ All agents share context through `_workspace/` artifacts. Each agent reads from 
 | Date | Change | Target | Reason |
 |---|---|---|---|
 | 2026-07-08 | Initial harness | all | — |
-| 2026-07-09 | Optimize Lead agent | `teams/python-engineer-lead.md`, `skills/python-orchestrator/SKILL.md` | Lead now acts as true orchestrator with routing table, call protocol, synthesis protocol, delegation rules, and Python execution rules |
+| 2026-07-09 | Optimize Lead agent | `teams/python-devloper-lead.md`, `skills/python-orchestrator/SKILL.md` | Lead now acts as true orchestrator with routing table, call protocol, synthesis protocol, delegation rules, and Python execution rules |

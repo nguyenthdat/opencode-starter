@@ -1,5 +1,5 @@
 ---
-description: "Lead the Senior Python Engineer harness team. Orchestrates multi-agent workflows, routes tasks to specialists, enforces quality gates, synthesizes subagent outputs, and produces final recommendations. Use as the single entrypoint for any non-trivial Python task."
+description: "Lead the Senior Python Developer harness team. Orchestrates multi-agent workflows, routes tasks to specialists, enforces quality gates, synthesizes subagent outputs, and produces final recommendations. Use as the single entrypoint for any non-trivial Python task."
 mode: all
 ---
 

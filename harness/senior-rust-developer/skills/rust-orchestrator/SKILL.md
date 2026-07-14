@@ -1,23 +1,23 @@
 ---
 name: rust-orchestrator
-description: "Coordinates the Senior Rust Engineer harness for Rust features, refactors, debugging, architecture, async, performance, API, security, unsafe/FFI, dependency review, testing, documentation, full audits, reruns, partial reruns, and fix verification. Use when Rust work benefits from named specialist delegation; not needed for a tiny low-risk question or one-line edit."
+description: "Coordinates the Senior Rust Developer harness for Rust features, refactors, debugging, architecture, async, performance, API, security, unsafe/FFI, dependency review, testing, documentation, full audits, reruns, partial reruns, and fix verification. Use when Rust work benefits from named specialist delegation; not needed for a tiny low-risk question or one-line edit."
 compatibility: opencode
 metadata:
   domain: rust
-  audience: senior-rust-engineer
+  audience: senior-rust-developer
   workflow: flat-hybrid-supervisor
 ---
 
-# Senior Rust Engineer Orchestrator
+# Senior Rust Developer Orchestrator
 
 Coordinate a flat, caller-led Rust workflow. The Rust Engineer Lead is the only task caller. Specialists return outputs and `handoff_requests` to the lead instead of calling one another.
 
 ## Runtime Topology
 
-The link script installs agents under `agents/senior-rust-engineer/`. Invoke them as:
+The link script installs agents under `agents/senior-rust-developer/`. Invoke them as:
 
 ```text
-senior-rust-engineer/<agent-file-name-without-.md>
+senior-rust-developer/<agent-file-name-without-.md>
 ```
 
 Never use `general` plus an injected team file when a named agent exists. Named dispatch preserves role instructions and permission boundaries.
@@ -174,7 +174,7 @@ Use this only for full audits or large high-risk scopes:
 Every specialist call must include:
 
 ```text
-Agent: senior-rust-engineer/<name>
+Agent: senior-rust-developer/<name>
 Run ID: <id>
 Mode: <plan|implement|review|audit|targeted-rerun>
 Objective: <one measurable specialist outcome>

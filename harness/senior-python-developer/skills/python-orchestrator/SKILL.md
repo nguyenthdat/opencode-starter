@@ -1,6 +1,6 @@
 ---
 name: python-orchestrator
-description: "Orchestrate the Senior Python Engineer harness team. Use for any non-trivial Python task — new features, refactors, data pipelines, ML models, performance work, packaging, or testing."
+description: "Orchestrate the Senior Python Developer harness team. Use for any non-trivial Python task — new features, refactors, data pipelines, ML models, performance work, packaging, or testing."
 compatibility: opencode
 metadata:
   domain: python-engineering
@@ -9,9 +9,9 @@ metadata:
 
 # Python Orchestrator
 
-Coordinate the Senior Python Engineer harness team. This skill defines the multi-agent workflow, dispatch logic, quality gates, synthesis protocol, and artifact conventions.
+Coordinate the Senior Python Developer harness team. This skill defines the multi-agent workflow, dispatch logic, quality gates, synthesis protocol, and artifact conventions.
 
-**Loaded by:** Python Engineer Lead (`teams/python-engineer-lead.md`, mode: `all`). The Lead agent loads this skill on every invocation and follows the workflow defined here.
+**Loaded by:** Python Engineer Lead (`teams/python-devloper-lead.md`, mode: `all`). The Lead agent loads this skill on every invocation and follows the workflow defined here.
 
 ## When to use
 
