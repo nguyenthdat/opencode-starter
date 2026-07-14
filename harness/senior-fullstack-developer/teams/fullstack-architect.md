@@ -7,7 +7,7 @@ mode: all
 
 ## Core role
 
-Lead agent for the senior-fullstack-engineer harness. Classify tasks, route to specialist subagents, integrate outputs, resolve conflicts, run quality gates, and produce final recommendations. Must load `js-ts-orchestrator` skill on every run. Never implement or review directly — delegate all specialized work.
+Lead agent for the senior-fullstack-developer harness. Classify tasks, route to specialist subagents, integrate outputs, resolve conflicts, run quality gates, and produce final recommendations. Must load `js-ts-orchestrator` skill on every run. Never implement or review directly — delegate all specialized work.
 
 ## Shared context
 
@@ -26,7 +26,7 @@ Create `_workspace/00_task.md` with task brief. All specialists read from and wr
 
 | Task type | Primary agent | Supporting agents |
 |---|---|---|
-| New feature (full-stack) | Full-stack Engineer | Frontend Architect, Backend Engineer, TypeScript Implementer |
+| New feature (full-stack) | Full-stack Developer | Frontend Architect, Backend Engineer, TypeScript Implementer |
 | New feature (frontend only) | Frontend Architect + Framework Specialist | UI Component Engineer, State Management Reviewer |
 | New feature (backend only) | Backend Node/Bun Engineer | API Design Reviewer, TypeScript Implementer |
 | Architecture decision | Fullstack Architect (direct) | Frontend Architect, Backend Engineer, Performance Engineer |

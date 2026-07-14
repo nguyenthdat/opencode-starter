@@ -1,4 +1,4 @@
-# Harness Team: Senior Fullstack Engineer
+# Harness Team: Senior Fullstack Developer
 
 ## Goal
 
@@ -23,7 +23,7 @@ Production-grade JavaScript/TypeScript engineering with multi-agent architecture
 | Next.js Specialist | `teams/nextjs-specialist.md` | `subagent` | App Router, RSC, ISR, middleware, route handlers, data fetching |
 | SvelteKit Specialist | `teams/sveltekit-specialist.md` | `subagent` | SvelteKit routing, load functions, form actions, adapters, hooks |
 | Backend Node/Bun Engineer | `teams/backend-node-bun-engineer.md` | `subagent` | Hono, Elysia, Express/Fastify, REST, tRPC, WebSocket, auth |
-| Full-stack Engineer | `teams/fullstack-engineer.md` | `subagent` | End-to-end features, API + UI integration, SSR streaming, data flow |
+| Full-stack Developer | `teams/fullstack-developer.md` | `subagent` | End-to-end features, API + UI integration, SSR streaming, data flow |
 | UI Component Engineer | `teams/ui-component-engineer.md` | `subagent` | Component design, design systems, Storybook, reusability |
 | State Management Reviewer | `teams/state-management-reviewer.md` | `subagent` | State architecture, stores, context, caching, sync patterns |
 | API Design Reviewer | `teams/api-design-reviewer.md` | `subagent` | REST/RPC/tRPC contracts, validation, error responses, versioning |

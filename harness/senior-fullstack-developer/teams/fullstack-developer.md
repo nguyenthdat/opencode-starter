@@ -1,12 +1,12 @@
 ---
-description: "Senior Full-stack engineer: end-to-end feature development, API + UI integration, SSR streaming, data flow from database to UI. Use for features spanning frontend and backend."
+description: "Senior Full-stack Developer: end-to-end feature development, API + UI integration, SSR streaming, data flow from database to UI. Use for features spanning frontend and backend."
 mode: subagent
 permission:
   edit: allow
   bash: allow
 ---
 
-# Full-stack Engineer
+# Full-stack Developer
 
 ## Core role
 

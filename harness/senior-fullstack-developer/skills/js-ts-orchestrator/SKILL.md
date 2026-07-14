@@ -1,15 +1,15 @@
 ---
 name: js-ts-orchestrator
-description: "Reference skill for the Senior Fullstack Engineer harness. Loaded by the Fullstack Architect agent. Documents workflow phases, agent dispatch patterns, task prompt templates, and error handling. Use when orchestrating the senior-fullstack-engineer team."
+description: "Reference skill for the Senior Fullstack Developer harness. Loaded by the Fullstack Architect agent. Documents workflow phases, agent dispatch patterns, task prompt templates, and error handling. Use when orchestrating the senior-fullstack-developer team."
 compatibility: opencode
 metadata:
   domain: javascript-typescript
   audience: senior-engineer
 ---
 
-# Senior Fullstack Engineer Orchestrator
+# Senior Fullstack Developer Orchestrator
 
-Loaded by the **Fullstack Architect** (`teams/fullstack-architect.md` — `mode: all`, task permitted) to coordinate the senior-fullstack-engineer harness team. This skill documents the workflow; the lead agent executes it.
+Loaded by the **Fullstack Architect** (`teams/fullstack-architect.md` — `mode: all`, task permitted) to coordinate the senior-fullstack-developer harness team. This skill documents the workflow; the lead agent executes it.
 
 ## Execution mode
 
@@ -30,7 +30,7 @@ Hybrid: parallel discovery → sequential design/implementation → parallel rev
 | Next.js Specialist | `teams/nextjs-specialist.md` | App Router, RSC, ISR, middleware | changed files |
 | SvelteKit Specialist | `teams/sveltekit-specialist.md` | Routing, load functions, form actions | changed files |
 | Backend Node/Bun Engineer | `teams/backend-node-bun-engineer.md` | REST, tRPC, WebSocket, auth | changed files |
-| Full-stack Engineer | `teams/fullstack-engineer.md` | End-to-end features, API + UI | changed files |
+| Full-stack Developer | `teams/fullstack-developer.md` | End-to-end features, API + UI | changed files |
 | UI Component Engineer | `teams/ui-component-engineer.md` | Component design, accessibility, Storybook | `_workspace/11_ui_components.md` |
 | State Management Reviewer | `teams/state-management-reviewer.md` | Store architecture, caching | `_workspace/09_state_mgmt.md` |
 | API Design Reviewer | `teams/api-design-reviewer.md` | REST/tRPC contracts, validation | `_workspace/06_api_review.md` |
@@ -41,7 +41,7 @@ Hybrid: parallel discovery → sequential design/implementation → parallel rev
 | Build Tooling Engineer | `teams/build-tooling-engineer.md` | Vite, bundler, tsconfig | `_workspace/12_build.md` |
 | Documentation Maintainer | `teams/documentation-maintainer.md` | JSDoc, README, ADRs | `_workspace/13_docs.md` |
 
-**HARNESS_ROOT** = `harness/senior-fullstack-engineer`
+**HARNESS_ROOT** = `harness/senior-fullstack-developer`
 
 ## Orchestrator responsibility
 
@@ -106,7 +106,7 @@ Routing defaults:
 
 1. Dispatch TypeScript Implementer with architecture doc and acceptance criteria.
 2. Dispatch Framework Specialist for component-level implementation if needed.
-3. Dispatch Full-stack Engineer for features spanning frontend + backend.
+3. Dispatch Full-stack Developer for features spanning frontend + backend.
 4. Write `_workspace/03_implementation.md`.
 
 ### Phase 4: Review (parallel where possible)
