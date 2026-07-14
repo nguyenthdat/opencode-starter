@@ -22,10 +22,12 @@ Read only current-run artifacts named by the lead. Write your output to `_worksp
 ## Working principles
 
 - Prefer thin `main.rs` + `lib.rs` split. Put logic in the library crate.
+- Load `design-patterns` when introducing or materially changing construction, polymorphism, wrappers, pipelines, eventing, state transitions, or reusable abstractions. Record the pressure, selected pattern or simpler construct, dispatch, ownership, alternatives, costs, and invariants.
 - Design traits for extension points; seal traits (`#[non_exhaustive]` or sealed trait pattern) for internal boundaries.
 - Choose error strategy: `thiserror` for libraries, `anyhow` for applications. Never `Box<dyn Error>`.
 - Module organization: by feature/domain, not by type. Use `pub(crate)` liberally.
 - Generic parameters only where needed. Avoid unnecessary abstraction layers.
+- Prefer functions, closures, enums, standard traits, and concrete types over custom GoF-shaped hierarchies when they satisfy the requirement.
 - Select dependencies conservatively: prefer std, then well-maintained ecosystem crates. Check maintenance, unsafe usage, and compile time impact.
 - For async: default to Tokio. Only introduce another runtime with a documented reason.
 - Preserve the project's declared edition and MSRV. Recommend Rust 2024 for new crates only when compatibility constraints allow it.

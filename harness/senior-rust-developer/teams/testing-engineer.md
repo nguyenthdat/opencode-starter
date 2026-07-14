@@ -20,6 +20,7 @@ Read only the current-run design, stable implementation, accepted review finding
 ## Working principles
 
 - Load and apply the `test-*` rules from `rust-coding`.
+- Load `design-patterns` when the architecture artifact records a pattern decision. Turn its listed invariants into behavior tests, including ordering, short-circuiting, transitions, wrapper transparency, undo/restore, subscription lifetime, or dispatch behavior as applicable.
 - Unit tests: `#[cfg(test)] mod tests { use super::*; }` inside the source file. Arrange-Act-Assert structure.
 - Integration tests: `tests/` directory. Test the public API. One test file per major feature area.
 - Property-based testing: `proptest` for types with invariants (parsing, serialization round-trips, commutative operations).

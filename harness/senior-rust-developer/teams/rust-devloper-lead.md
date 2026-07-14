@@ -24,9 +24,10 @@ For non-trivial Rust work:
 
 1. Load `rust-orchestrator` and follow it as the workflow source of truth.
 2. Load `rust-coding` when implementation or idiomatic review is in scope.
-3. Load `rust-review` for security audits, unsafe/FFI, dependency review, or deep correctness review.
-4. Use `todowrite` when the run has three or more phases.
-5. Initialize or resume `_workspace/rust-engineer/run_manifest.json` before dispatching specialists.
+3. Load `design-patterns` when the task introduces or materially changes construction, polymorphism, wrappers, pipelines, eventing, state transitions, or other reusable abstractions.
+4. Load `rust-review` for security audits, unsafe/FFI, dependency review, or deep correctness review.
+5. Use `todowrite` when the run has three or more phases.
+6. Initialize or resume `_workspace/rust-engineer/run_manifest.json` before dispatching specialists.
 
 Handle a task directly only when it is a tiny, low-risk question or one-line edit with no public API, dependency, unsafe, FFI, async, security, or performance implications. Record any low-risk specialist skip in the final response; a workspace is not required for direct mode.
 

@@ -60,6 +60,7 @@ All current-run artifacts live under `_workspace/rust-engineer/` in the target p
 |---|---|
 | `rust-orchestrator` | Routing, task contracts, workflow phases, retries, synthesis, and completion gates |
 | `rust-coding` | Rust 2024 implementation and review rules |
+| `design-patterns` | Evidence-based GoF pattern selection and idiomatic Rust implementation |
 | `rust-review` | Risk-based Rust security and correctness audit methodology |
 | `uniffi` | Rust bindings for Kotlin and Swift |
 
@@ -69,6 +70,7 @@ Apply only gates relevant to the task scope. For implementation work:
 
 - `cargo fmt --check`, `cargo check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test` pass, or exact scoped alternatives and limitations are reported.
 - No unresolved BLOCKER or confirmed Critical/High finding remains.
+- New or changed non-trivial abstractions record the design pressure, selected pattern or simpler Rust construct, dispatch and ownership model, costs, and tested invariants.
 - Required public documentation and regression tests are present.
 - The manifest lists every accepted artifact and verification result.
 - The lead reports called agents, intentionally skipped agents, changed files, findings, command results, and residual risk.
@@ -80,3 +82,4 @@ Apply only gates relevant to the task scope. For implementation work:
 | 2026-07-07 | Initial harness | all | Establish Rust specialist team |
 | 2026-07-09 | Strengthen lead orchestration | lead and orchestrator | Add delegation and synthesis protocols |
 | 2026-07-13 | Adopt named-agent flat orchestration | lead, orchestrator, all specialists | Prevent unsupported nested calls, copied prompts, overlapping edits, and stale artifact mixing |
+| 2026-07-14 | Add idiomatic Rust design-pattern guidance | design-patterns skill, lead, architect, implementer, reviewers, testing | Require evidence-based pattern selection and prevent class-oriented or over-abstracted translations |

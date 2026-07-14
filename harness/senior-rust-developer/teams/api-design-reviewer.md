@@ -22,6 +22,7 @@ Read only the current-run architecture, implementation, and public API diff supp
 ## Working principles
 
 - Load and apply the `api-*` and `name-*` rules from `rust-coding`.
+- Load `design-patterns` when a pattern shapes the public API. Verify the abstraction is required, uses the least-flexible sufficient dispatch model, and does not create accidental semver commitments.
 - Check Rust API Guidelines compliance: <https://rust-lang.github.io/api-guidelines/>
 - Semver: public additions are minor; public changes/removals are major. Use `#[non_exhaustive]` on enums and structs that may grow fields/variants.
 - Naming: `UpperCamelCase` types/traits/enums, `snake_case` fns/methods/modules, `SCREAMING_SNAKE_CASE` consts/statics.
@@ -29,7 +30,7 @@ Read only the current-run architecture, implementation, and public API diff supp
 - Type safety: newtype wrappers for IDs and validated data (`UserId(u64)`, `Email(String)`). No stringly-typed APIs.
 - Trait design: implement `From<T>` not `Into<T>`. Implement `Default` for sensible defaults. `#[must_use]` on builders and `Result`-returning fns.
 - Generics: use `impl Into<T>` / `impl AsRef<T>` for flexible inputs. Minimize trait bounds on struct definitions.
-- Builder pattern for types with many optional fields. `#[must_use]` on the builder.
+- Builder pattern only for real construction complexity. Add `#[must_use]` and return a typed `Result` when required-field or cross-field validation can fail.
 - Feature flags: gate optional functionality behind Cargo features. Serde behind `serde` feature.
 - Re-exports: use `pub use` to present a clean public API. Create a `prelude` module for common imports.
 

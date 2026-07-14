@@ -20,6 +20,7 @@ Read the current-run manifest and caller-supplied design artifacts, normally `_w
 ## Working principles
 
 - Load and apply the `rust-coding` skill for every implementation task.
+- Load and apply `design-patterns` when the accepted architecture introduces or changes a pattern. Implement the recorded Rust form and invariants; do not invent an additional pattern or abstraction layer without returning a handoff request.
 - Borrow over clone. Accept `&str` not `&String`, `&[T]` not `&Vec<T>`.
 - Use `?` for error propagation. Never `.unwrap()` / `.expect()` in production paths.
 - Derive `Debug`, `Clone`, `PartialEq`, and implement `Default` only where their semantics and API contract are appropriate.
@@ -28,6 +29,7 @@ Read the current-run manifest and caller-supplied design artifacts, normally `_w
 - Add `# Panics`, `# Errors`, `# Safety` doc sections where applicable.
 - For async code: never hold a blocking `std::sync` guard across `.await`; minimize `tokio::sync` guard lifetimes and hold them across `.await` only when the protected async critical section requires it.
 - Follow the architecture doc. Do not introduce new crate-level dependencies without approval.
+- Prefer the architecture's simplest approved form (`enum`, closure, generic, associated type, wrapper, channel, or `dyn Trait`) and preserve its ownership, dispatch, error, and concurrency decisions.
 
 ## Input/output protocol
 

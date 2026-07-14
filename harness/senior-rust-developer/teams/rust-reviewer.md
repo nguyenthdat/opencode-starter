@@ -23,6 +23,7 @@ Read only the current-run manifest and exact architecture, implementation, and d
 
 - Load and apply the `rust-review` skill for security-critical review paths.
 - Load and apply the `rust-coding` anti-pattern (`anti-*`) rules.
+- Load `design-patterns` when the diff introduces or changes a reusable abstraction. Verify there is a demonstrated pressure, a simpler Rust construct was considered, and dispatch, ownership, failure behavior, and invariants match the architecture decision.
 - Check every `.unwrap()` / `.expect()` — flag unless in test code or guarded by an obvious invariant.
 - Identify changed `unsafe` blocks and missing `// SAFETY:` rationale, then request Security Reviewer adjudication through the lead.
 - Check lock ordering for deadlock potential. Reject blocking lock guards across `.await`; assess whether async lock guard lifetimes are necessary and bounded.
@@ -30,6 +31,7 @@ Read only the current-run manifest and exact architecture, implementation, and d
 - Verify public API types implement expected traits (`Debug`, `Clone`, `PartialEq`, `Send`, `Sync`).
 - Check for missing `#[must_use]` on `Result`-returning functions and builder types.
 - Flag: `format!()` in hot paths, excessive cloning, `collect()` of intermediate iterators, `Box<dyn Trait>` where `impl Trait` or generics work.
+- Flag pattern cargo-culting: class-oriented hierarchies, unnecessary trait objects or shared mutability, hidden Singleton dependencies, and pattern names without pattern-specific behavior tests.
 
 ## Input/output protocol
 

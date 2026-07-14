@@ -71,7 +71,7 @@ The manifest is the current-run allowlist. Do not ask agents to glob or infer wh
 
 | Signal | Required Owner | Add When |
 |---|---|---|
-| Crate/module boundary, core type/trait, error taxonomy, dependency choice | `rust-architect` | Always for broad refactors or new subsystem design |
+| Crate/module boundary, core type/trait, design pattern, dispatch model, error taxonomy, dependency choice | `rust-architect` | Always for broad refactors or new subsystem design; load `design-patterns` when introducing or materially changing an abstraction |
 | Production code requested | `rust-implementer` | Exactly one normal-pipeline production writer |
 | Non-trivial code or diff | `rust-reviewer` | Always before implementation approval |
 | `.await`, Tokio, tasks, channels, locks, cancellation, concurrency | `async-rust-specialist` | Design consult before implementation; review consult after when risk remains |
@@ -97,7 +97,7 @@ Use only matching agents. Record low-risk skips in `01_task.md` and final covera
 
 ### Phase 0: Intake and Discovery
 
-1. Classify mode, scope, acceptance criteria, MSRV/edition, compatibility constraints, protected files, and required gates.
+1. Classify mode, scope, acceptance criteria, MSRV/edition, compatibility constraints, protected files, required gates, and whether a design-pattern decision is in scope.
 2. Detect risk flags from the routing matrix.
 3. Inspect `Cargo.toml`, `Cargo.lock`, crate layout, relevant source, tests, and the current diff. Use `explore` only when bounded discovery is cheaper than direct inspection.
 4. Write `01_task.md` and `10_discovery.md`; initialize the manifest before specialist dispatch.
@@ -108,7 +108,7 @@ Dispatch Architect when structure or contracts may change. Dispatch Async, API, 
 
 Independent design consults may share a wave after discovery. Architect owns the integrated architecture artifact; the lead resolves conflicts and records accepted constraints before implementation.
 
-Gate: `20_architecture.md` must state affected boundaries, key types/traits, error strategy, dependency decisions, compatibility constraints, risks, and implementation acceptance criteria.
+Gate: `20_architecture.md` must state affected boundaries, key types/traits, error strategy, dependency decisions, compatibility constraints, risks, and implementation acceptance criteria. For every new or materially changed abstraction, it must also record the concrete design pressure, selected pattern or simpler Rust construct, dispatch and ownership model, rejected alternatives, costs, and testable invariants.
 
 ### Phase 2: Implementation
 
@@ -230,6 +230,7 @@ For implementation mode, deliver complete only when:
 - No unresolved BLOCKER or confirmed Critical/High finding remains.
 - Relevant formatting, compilation, lint, test, and doctest commands pass.
 - Public API documentation and regression tests match the final code.
+- Every in-scope pattern decision is justified by a demonstrated pressure and its ownership, dispatch, failure, and pattern-specific invariants were reviewed and tested.
 - The lead reports intentional skips, unavailable tools, and residual risk.
 
 For plan, review, and audit modes, do not require implementation-only commands; require evidence, scope coverage, and an explicit final recommendation instead.
