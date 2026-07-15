@@ -320,3 +320,4 @@ qdrant_data/
 manifest-allowbackup-snapshot.md
 application-element-snapshot.md
 _workspace/
+.opencode/
