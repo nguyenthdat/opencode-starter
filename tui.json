@@ -1,7 +1,1 @@
-{
-  "$schema": "https://opencode.ai/tui.json",
-  "theme": "jetbrains-islands-dark",
-  "plugin": [
-    "oc-codex-multi-auth"
-  ]
-}
+{ "$schema": "https://opencode.ai/tui.json", "theme": "jetbrains-islands-dark" }
