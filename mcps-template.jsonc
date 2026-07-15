@@ -11,6 +11,11 @@
         "TOOL_FIND_DESCRIPTION": "Search long-term project memory before starting any task. Find architectural decisions, constraints, conventions, previous errors and their fixes, known issues with workarounds, user-requested changes history, reusable implementation patterns, and task-relevant context. Always search first to avoid repeating past mistakes or re-solving solved problems.",
       },
     },
+    "agentic-memory": {
+      "enabled": true,
+      "type": "local",
+      "command": ["agentic-memory-mcp", "serve"],
+    },
     "codebase-memory-mcp": { "enabled": true, "type": "local", "command": ["codebase-memory-mcp"] },
     "memory": { "type": "local", "command": ["bunx", "-y", "@modelcontextprotocol/server-memory"] },
     "git": { "type": "local", "command": ["uvx", "mcp-server-git"] },

@@ -1,18 +1,10 @@
-# Harness Team: Senior Rust Developer
+# Senior Rust Developer
 
 ## Goal
 
 Deliver production-grade Rust architecture, implementation, review, testing, security, performance, API, and documentation work through a predictable multi-agent workflow.
 
 ## Activation
-
-`harness/senior-rust-developer` is the source of truth. Activate it with:
-
-```bash
-uv run scripts/harness-opencode.py link senior-rust-developer
-```
-
-The script links named agents under `agents/senior-rust-developer/`, links the team skills and instruction file, and merges `mcp.json`. Restart OpenCode after linking or changing any agent, skill, instruction, or MCP file.
 
 Select `senior-rust-developer/rust-devloper-lead` as the primary agent for non-trivial Rust work. The lead must load `rust-orchestrator`. Tiny questions and one-line, low-risk edits can be handled directly without fan-out.
 

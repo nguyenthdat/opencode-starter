@@ -1,4 +1,4 @@
-# Harness Team: Senior Fullstack Developer
+# Senior Fullstack Developer
 
 ## Goal
 
@@ -6,33 +6,33 @@ Production-grade JavaScript/TypeScript engineering with multi-agent architecture
 
 ## Lead agent
 
-**Fullstack Architect** (`teams/fullstack-architect.md`) — `mode: all`, permission to spawn subagents. Orchestrates the full team, dispatches specialists, integrates outputs, resolves conflicts. Loads `js-ts-orchestrator` skill on every run.
+**Fullstack Architect** (`fullstack-architect.md`) — `mode: all`, permission to spawn subagents. Orchestrates the full team, dispatches specialists, integrates outputs, resolves conflicts. Loads `js-ts-orchestrator` skill on every run.
 
 ## Specialists
 
 | Agent | File | Mode | Responsibility |
 |---|---|---|---|
-| Fullstack Architect | `teams/fullstack-architect.md` | `all` | Orchestration, project detection, task classification, dispatch, synthesis, quality gates |
-| TypeScript Implementer | `teams/typescript-implementer.md` | `subagent` | Production TypeScript code, applies `typescript-coding` skill |
-| TypeScript Reviewer | `teams/typescript-reviewer.md` | `subagent` | Type safety, correctness, anti-patterns, error handling review |
-| Frontend Architect | `teams/frontend-architect.md` | `subagent` | Component tree, routing, SSR/CSR strategy, bundle architecture |
-| React Specialist | `teams/react-specialist.md` | `subagent` | React components, hooks, Server Components, Suspense, state management |
-| Svelte Specialist | `teams/svelte-specialist.md` | `subagent` | Svelte 5 runes, stores, transitions, SSR, SvelteKit patterns |
-| Vue Specialist | `teams/vue-specialist.md` | `subagent` | Vue 3 Composition API, Pinia, Vue Router, Nuxt patterns |
-| SolidJS Specialist | `teams/solidjs-specialist.md` | `subagent` | SolidJS signals, stores, resources, SSR, SolidStart patterns |
-| Next.js Specialist | `teams/nextjs-specialist.md` | `subagent` | App Router, RSC, ISR, middleware, route handlers, data fetching |
-| SvelteKit Specialist | `teams/sveltekit-specialist.md` | `subagent` | SvelteKit routing, load functions, form actions, adapters, hooks |
-| Backend Node/Bun Engineer | `teams/backend-node-bun-engineer.md` | `subagent` | Hono, Elysia, Express/Fastify, REST, tRPC, WebSocket, auth |
-| Full-stack Developer | `teams/fullstack-developer.md` | `subagent` | End-to-end features, API + UI integration, SSR streaming, data flow |
-| UI Component Engineer | `teams/ui-component-engineer.md` | `subagent` | Component design, design systems, Storybook, reusability |
-| State Management Reviewer | `teams/state-management-reviewer.md` | `subagent` | State architecture, stores, context, caching, sync patterns |
-| API Design Reviewer | `teams/api-design-reviewer.md` | `subagent` | REST/RPC/tRPC contracts, validation, error responses, versioning |
-| Performance Engineer | `teams/performance-engineer.md` | `subagent` | Bundle analysis, Core Web Vitals, profiling, caching, optimization |
-| Security Reviewer | `teams/security-reviewer.md` | `subagent` | OWASP, auth, input validation, CSP, dependency audit, secrets management |
-| Accessibility Reviewer | `teams/accessibility-reviewer.md` | `subagent` | WCAG 2.2 AA, ARIA, keyboard nav, screen readers, contrast, semantics |
-| Testing Engineer | `teams/testing-engineer.md` | `subagent` | Unit, integration, e2e, component tests, coverage, CI gates |
-| Build Tooling Engineer | `teams/build-tooling-engineer.md` | `subagent` | Vite, bundler config, tsconfig, tree-shaking, code splitting, CI/CD |
-| Documentation Maintainer | `teams/documentation-maintainer.md` | `subagent` | JSDoc, README, API docs, storybook docs, architecture decisions |
+| Fullstack Architect | `fullstack-architect.md` | `all` | Orchestration, project detection, task classification, dispatch, synthesis, quality gates |
+| TypeScript Implementer | `typescript-implementer.md` | `subagent` | Production TypeScript code, applies `typescript-coding` skill |
+| TypeScript Reviewer | `typescript-reviewer.md` | `subagent` | Type safety, correctness, anti-patterns, error handling review |
+| Frontend Architect | `frontend-architect.md` | `subagent` | Component tree, routing, SSR/CSR strategy, bundle architecture |
+| React Specialist | `react-specialist.md` | `subagent` | React components, hooks, Server Components, Suspense, state management |
+| Svelte Specialist | `svelte-specialist.md` | `subagent` | Svelte 5 runes, stores, transitions, SSR, SvelteKit patterns |
+| Vue Specialist | `vue-specialist.md` | `subagent` | Vue 3 Composition API, Pinia, Vue Router, Nuxt patterns |
+| SolidJS Specialist | `solidjs-specialist.md` | `subagent` | SolidJS signals, stores, resources, SSR, SolidStart patterns |
+| Next.js Specialist | `nextjs-specialist.md` | `subagent` | App Router, RSC, ISR, middleware, route handlers, data fetching |
+| SvelteKit Specialist | `sveltekit-specialist.md` | `subagent` | SvelteKit routing, load functions, form actions, adapters, hooks |
+| Backend Node/Bun Engineer | `backend-node-bun-engineer.md` | `subagent` | Hono, Elysia, Express/Fastify, REST, tRPC, WebSocket, auth |
+| Full-stack Developer | `fullstack-developer.md` | `subagent` | End-to-end features, API + UI integration, SSR streaming, data flow |
+| UI Component Engineer | `ui-component-engineer.md` | `subagent` | Component design, design systems, Storybook, reusability |
+| State Management Reviewer | `state-management-reviewer.md` | `subagent` | State architecture, stores, context, caching, sync patterns |
+| API Design Reviewer | `api-design-reviewer.md` | `subagent` | REST/RPC/tRPC contracts, validation, error responses, versioning |
+| Performance Engineer | `performance-engineer.md` | `subagent` | Bundle analysis, Core Web Vitals, profiling, caching, optimization |
+| Security Reviewer | `security-reviewer.md` | `subagent` | OWASP, auth, input validation, CSP, dependency audit, secrets management |
+| Accessibility Reviewer | `accessibility-reviewer.md` | `subagent` | WCAG 2.2 AA, ARIA, keyboard nav, screen readers, contrast, semantics |
+| Testing Engineer | `testing-engineer.md` | `subagent` | Unit, integration, e2e, component tests, coverage, CI gates |
+| Build Tooling Engineer | `build-tooling-engineer.md` | `subagent` | Vite, bundler config, tsconfig, tree-shaking, code splitting, CI/CD |
+| Documentation Maintainer | `documentation-maintainer.md` | `subagent` | JSDoc, README, API docs, storybook docs, architecture decisions |
 
 ## Strict role boundaries
 
