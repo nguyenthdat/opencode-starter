@@ -5,7 +5,7 @@ import {
   pushOption,
   runCli,
   validateJsonObject,
-} from "../scripts/opencode-plugin-utils.js";
+} from "../src/utils/opencode-plugin-utils.jsjs";
 
 const schema = tool.schema;
 
