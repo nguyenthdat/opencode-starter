@@ -57,8 +57,9 @@ The `developer` branch keeps plugin discovery separate from implementation:
 ```text
 plugins/                         # stable OpenCode auto-load entrypoints
 packages/plugin-kit/             # shared CLI, path, and execution policy
-packages/native-diagnostics/     # Bun plugin implementation and FFI loader
-crates/opencode-native-diagnostics/ # Rust cdylib with a versioned C ABI
+packages/native-memory/          # custom tools, recall hooks, and sidecar client
+crates/opencode-native-memory/   # Rust zvec sidecar and retrieval engine
+scripts/build-native-memory.ts   # packages the zvec runtime beside the binary
 tests/                           # Bun unit and integration tests
 ```
 
@@ -69,14 +70,36 @@ Use Bun as the only JavaScript package manager. `bun.lock` is authoritative;
 bun install --frozen-lockfile
 bun run typecheck
 bun test
-bun run test:native
+bun run memory:build:release
+bun run memory:warmup
+bun run test:memory:e2e
 bun run check
 ```
 
 New plugins should keep only a small entrypoint in `plugins/` and place reusable
 or multi-file code in a named package under `packages/`. Native code belongs in
-a dedicated crate under `crates/`; expose a narrow, versioned C ABI and load it
-lazily so OpenCode can still start before native artifacts are built.
+a dedicated crate under `crates/`. Stateful native libraries should run in an
+isolated sidecar so a native fault cannot terminate OpenCode.
+
+### Native Project Memory
+
+`plugins/opencode-memory.ts` auto-loads five OpenCode custom tools without MCP:
+`native_memory_search`, `native_memory_store`, `native_memory_get`,
+`native_memory_forget`, and `native_memory_status`.
+
+The plugin recalls relevant project memory before model execution and injects it
+as untrusted historical context. It also preserves durable candidates during
+compaction. The Rust sidecar combines multilingual E5 embeddings, zvec HNSW,
+full-text search, importance, and recency. Data is isolated by canonical Git
+worktree under `~/.local/share/opencode/native-memory`; downloaded models live
+under `~/.cache/opencode/native-memory/models`.
+
+The first setup downloads the local embedding model:
+
+```bash
+bun run memory:build:release
+bun run memory:warmup
+```
 
 ### Instructions
 
@@ -91,15 +114,10 @@ Pre-configured MCP servers in `opencode.jsonc`:
 - **github** — GitHub API (requires `GITHUB_TOKEN`)
 - **context7** — Documentation lookup (requires `CONTEXT7_API_KEY`)
 - **exa** — Web search (requires `EXA_API_KEY`)
-- **filesystem** — File system operations
 - **git** — Git operations via `uvx mcp-server-git`
-- **memory** — Persistent knowledge graph
-- **qdrant** — Long-term project memory (requires running Qdrant)
-- **sequential-thinking** — Structured reasoning
+- **codebase-memory** — Local code graph and structural search, distinct from durable project memory
 - **cloakbrowser** — Headless browser automation
-- **token-optimizer** — Token usage optimization
 - **time** — Timezone utilities
-- **everything** — MCP testing/demo server
 
 ### Vendor Skills (submodules)
 

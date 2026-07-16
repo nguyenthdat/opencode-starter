@@ -1,7 +1,7 @@
 use std::fs;
 
 use opencode_native_memory::{
-    ForgetRequest, MemoryConfig, MemoryEngine, MemoryKind, SearchRequest, StoreRequest,
+    ForgetRequest, GetRequest, MemoryConfig, MemoryEngine, MemoryKind, SearchRequest, StoreRequest,
 };
 
 #[test]
@@ -10,11 +10,7 @@ fn stores_recalls_and_forgets_project_memory() {
     let temp = tempfile::tempdir().expect("create temp dir");
     let project = temp.path().join("project");
     fs::create_dir_all(&project).expect("create project dir");
-    let config = MemoryConfig::new(
-        project,
-        temp.path().join("data"),
-        temp.path().join("models"),
-    );
+    let config = MemoryConfig::new(project, temp.path().join("data"), model_cache());
     let mut engine = MemoryEngine::open(config).expect("open native memory");
 
     let rust = engine
@@ -51,8 +47,28 @@ fn stores_recalls_and_forgets_project_memory() {
         Some(rust.id.as_str())
     );
 
+    let fetched = engine
+        .get(&GetRequest {
+            ids: vec![rust.id.clone()],
+        })
+        .expect("fetch memory");
+    assert_eq!(fetched.len(), 1);
+    assert_eq!(fetched[0].kind, MemoryKind::Decision);
+
     let forgotten = engine
         .forget(&ForgetRequest { ids: vec![rust.id] })
         .expect("forget memory");
     assert_eq!(forgotten.deleted, 1);
+}
+
+fn model_cache() -> std::path::PathBuf {
+    std::env::var_os("OPENCODE_MEMORY_MODEL_CACHE").map_or_else(
+        || {
+            std::env::var_os("HOME").map_or_else(
+                || std::path::PathBuf::from(".fastembed_cache"),
+                |home| std::path::PathBuf::from(home).join(".cache/opencode/native-memory/models"),
+            )
+        },
+        std::path::PathBuf::from,
+    )
 }

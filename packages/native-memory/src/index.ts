@@ -118,7 +118,9 @@ export class NativeMemoryClient {
 
     return await new Promise<T>((resolveRequest, rejectRequest) => {
       const timer = setTimeout(() => {
-        this.pending.delete(id);
+        const active = this.pending.get(id);
+        if (!active) return;
+        this.finishPending(id, active);
         rejectRequest(
           new Error(
             `Native memory ${method} timed out after ${REQUEST_TIMEOUT_MS} ms`,
