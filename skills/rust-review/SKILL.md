@@ -25,7 +25,7 @@ Expert Rust code review covering security, correctness, safety, and maintainabil
 
 ## Review Modes
 
-Before starting, clarify the scope. If not explicit in the user's request, ask one question:
+Before starting, clarify the scope. A leaf specialist uses the mode and exact paths supplied by the lead and never questions the user directly. When this skill is used directly and the user's scope is ambiguous, ask one concise question.
 
 | Mode | Trigger phrases | What to do |
 |---|---|---|
@@ -174,7 +174,7 @@ The skill's reference prompt library provides 15 review clusters covering 69 bug
 | Input & OS Safety | has_fs_io | path traversal via join, TOCTOU | `prompts/clusters/input-os-safety.md` |
 | Info Disclosure | always | pointer exposure via Debug/Display | `prompts/clusters/info-disclosure.md` |
 
-In addition to the cluster prompts, the `prompts/general/` directory contains 48 individual bug-class finder prompts. These are useful for targeted bug-class hunts. Read the relevant finder prompt when the user asks for a specific bug class.
+In addition to the cluster prompts, the `prompts/general/` directory contains 55 individual bug-class finder prompts. These are useful for targeted bug-class hunts. Read the relevant finder prompt when the user asks for a specific bug class.
 
 ### Expanded Review Scope
 
@@ -261,6 +261,9 @@ Every finding must use this structure:
 ```markdown
 ### Finding: [Title]
 
+- **Finding ID:** [stable ID]
+- **Bug class:** [lowercase-hyphenated defect ID; do not reuse the broad Category]
+- **Impact kind:** Security | Correctness | Both
 - **Severity:** Critical | High | Medium | Low | Informational
 - **Confidence:** High | Medium | Low
 - **Category:** [e.g., Unsafe/Memory Safety, Concurrency, Error Handling, Input Validation, ...]
@@ -306,7 +309,7 @@ For every unsafe block, function, or trait impl, document:
 5. **Enforcement mechanism** — are there tests, type system constraints, or runtime assertions?
 6. **Failure mode** — what UB or unsoundness occurs if the invariant is violated?
 
-A missing or incomplete `// SAFETY:` comment is at minimum a Medium finding. An unsafe API with no safety documentation is at minimum a High finding.
+A missing `// SAFETY:` comment on currently sound internal unsafe is normally Low hardening debt. An unsafe public API with undocumented caller obligations is at least Medium. Raise severity only when the missing or false contract permits an invariant violation with greater demonstrated impact.
 
 ## Diff Review Mode
 
@@ -321,19 +324,11 @@ When reviewing a PR or diff:
 
 For diff review, include a section "Changed files and risk assessment" listing each changed file with its risk category.
 
-## Large Task Delegation
+## Orchestration Boundary
 
-Only `senior-rust-developer/rust-devloper-lead` delegates deep-audit work. A reviewer or worker that loads this skill must never call `task`; it returns a `handoff_request` to the lead instead.
+This skill owns review methodology and finding semantics only. `senior-rust-developer/lead` owns agent IDs, partitioning, dispatch order, artifacts, retries, and synthesis. A leaf reviewer or audit worker never calls `task`; it returns `handoff_requests` through the lead-defined envelope.
 
-For a full audit, the lead runs this flat pipeline:
-
-1. Partition exact files or crates into non-overlapping cluster assignments.
-2. Dispatch up to three `senior-rust-developer/rust-review-worker` calls per wave. Each receives one cluster, exact paths, threat model, relevant cluster prompts, finding format, and a unique `_workspace/rust-engineer/46_audit_worker_<scope>.md` output.
-3. Dispatch `senior-rust-developer/rust-review-dedup-judge` with only current-run worker artifacts. It writes `47_audit_dedup.md`.
-4. Dispatch `senior-rust-developer/rust-review-fp-judge` with discovery, threat model, and deduplicated findings. It writes `48_audit_adjudication.md`.
-5. The lead reads all accepted artifacts, resolves gaps, and owns the final report and ship/block decision.
-
-Workers never call each other. Deduplication and adjudication are sequential because each consumes the prior stage.
+Deep-audit workers emit stable `bug_class` values. Deduplication must not substitute the broad Category for that identifier. Adjudication assigns correctness and security verdicts independently so a real correctness defect is never dismissed solely for being outside an attacker threat model.
 
 ## Guardrails
 

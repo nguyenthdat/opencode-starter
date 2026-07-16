@@ -1,6 +1,6 @@
 ---
 name: harness
-description: "Use this skill only when creating or editing harness teams, harness agents, harness skills, orchestrator workflows, or related opencode harness configuration."
+description: "Use this skill only when creating or editing harness teams, harness agents, harness skills, lead-owned or skill-owned orchestration workflows, component manifests, or related opencode harness configuration."
 compatibility: opencode
 metadata:
   domain: opencode-harness
@@ -9,23 +9,26 @@ metadata:
 
 # Harness — opencode Agent & Skill Architect
 
-Build a domain-specific harness: a reusable operating system of opencode agents, skills, orchestrator workflows, project instructions, and verification loops.
+Build a domain-specific harness: a reusable operating system of opencode agents, skills, caller-led workflows, project instructions, component manifests, and verification loops.
 
 A harness is not a static pile of prompts. It is a maintained system that answers:
 
 - **Who** does the work? → agent definitions.
 - **How** do they do it? → skills and references.
-- **When and in what order** do they collaborate? → an orchestrator skill/workflow.
+- **When and in what order** do they collaborate? → one primary lead or reusable orchestrator workflow.
 - **How does the harness stay useful over time?** → tests, audits, drift checks, and change history.
 
 ## Core principles
 
 1. **Use opencode-native locations.** Create reusable agents under `.opencode/agent/` or `.opencode/agents/`. Create skills under `.opencode/skill(s)/` or a configured project skill path such as `skills/`.
-2. **Separate role from procedure.** Agents define expert identity, scope, constraints, and I/O protocol. Skills define the repeatable workflow, reference material, scripts, and examples.
+2. **Separate specialist role from reusable procedure.** Specialist agents define identity, scope, constraints, and I/O. Skills contain reusable domain methodology. A primary lead may own a team-specific workflow directly; do not create an orchestration skill unless that workflow is reused independently.
 3. **The primary agent owns orchestration.** opencode subagents return results to the caller; do not assume direct subagent-to-subagent messaging. Share context through task prompts and `_workspace/` artifacts.
 4. **Use parallel tasks when they add value.** Launch independent `task` subagents in the same turn when research, implementation, QA, or content work can happen concurrently. Sequence tasks when outputs have real dependencies.
-5. **Per-team instructions + lean base index.** Each harness team gets its own instruction file at `.opencode/instructions/<team>.md`, registered with an explicit path in `.opencode/opencode.jsonc` `instructions` (keeping `AGENTS.md` first). `AGENTS.md` stays a lean base: project identity, source-of-truth statement, global rules, and a compact harness index table — never full harness sections. Keep detailed workflow in the orchestrator skill.
-6. **Treat the harness as evolving infrastructure.** After each meaningful run, fold feedback into the relevant agent, skill, orchestrator, test case, or project pointer.
+5. **One workflow owner.** Keep a team-specific workflow in its primary lead agent by default. Use a dedicated orchestrator skill only when multiple leads or entry points genuinely reuse it. Never duplicate the same flow in both.
+6. **Per-team instructions + lean base index.** Each harness team gets its own instruction file at `.opencode/instructions/<team>.md`, registered with an explicit path in `.opencode/opencode.jsonc` `instructions` (keeping `AGENTS.md` first). `AGENTS.md` stays a lean base: project identity, source-of-truth statement, global rules, and a compact harness index table.
+7. **Treat the harness as evolving infrastructure.** After each meaningful run, fold feedback into the relevant agent, skill, workflow owner, test case, manifest, or project pointer.
+8. **Namespace reusable teams.** Put team roles under `agents/<team-id>/` so runtime IDs become `<team-id>/<role>`. Keep role filenames generic inside the namespace (`lead.md`, `architect.md`, `reviewer.md`) and prefix language-specific skills (`rust-design-patterns`) so future language and domain teams do not collide.
+9. **Keep component state declarative.** When the repository supports component toggles, maintain one schema-validated manifest per team with exact agent, skill, MCP, and instruction IDs. Manifests contain identity, enabled state, required hints, and model defaults only; workflow prose remains in the selected workflow owner.
 
 ## Workflow
 
@@ -51,11 +54,11 @@ When this skill triggers, inspect the existing harness before designing anything
 
 | Change type | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 |
 |---|---|---|---|---|---|---|
-| Add agent | Reuse audit result | Placement decision only | Required, including duplicate check | Only if the agent needs a dedicated skill | Update orchestrator | Required |
+| Add agent | Reuse audit result | Placement decision only | Required, including duplicate check | Only if the agent needs a dedicated skill | Update workflow owner | Required |
 | Add/update skill | Skip unless domain changed | Skip | Skip | Required, including duplicate check | Only if routing changes | Required |
 | Architecture change | Targeted analysis | Required | Affected agents only | Affected skills only | Required | Required |
 
-3. Compare actual files with orchestrator descriptions and project pointers. Record drift: missing files, orphaned files, stale triggers, mismatched names, and stale change history.
+3. Compare actual files with the selected workflow owner, component manifest, and project pointers. Record drift: missing files, orphaned files, stale triggers, mismatched names, and stale change history.
 4. Report the audit summary and proposed plan before making broad changes.
 
 ### Phase 1: Domain analysis
@@ -125,7 +128,10 @@ Accepted project locations:
 ```text
 .opencode/agent/{name}.md
 .opencode/agents/{name}.md
+.opencode/agents/{team-id}/{role}.md
 ```
+
+OpenCode discovers nested agent files recursively. For example, `.opencode/agents/senior-rust-developer/lead.md` is invoked as `senior-rust-developer/lead`. Prefer this namespaced form for every multi-agent team; reserve root agent names for genuinely cross-team roles.
 
 Recommended frontmatter:
 
@@ -221,18 +227,18 @@ See `references/skill-writing-guide.md` for detailed writing patterns.
 
 ### Phase 5: Integration and orchestration
 
-The orchestrator is a skill that wires agents, skills, data flow, and verification into one workflow. Individual skills explain how a specialist works; the orchestrator explains who acts when and how the outputs combine.
+The primary lead owns orchestration. Put routing, data flow, retries, integration, and verification in the lead agent when they belong to one team. Create a dedicated orchestrator skill only when the workflow must be loaded independently or reused by multiple leads. Select one owner and remove duplicate flow prose from all other files.
 
-#### 5-0. Orchestrator pattern
+#### 5-0. Workflow owner pattern
 
-For opencode, write orchestrators around these primitives:
+Build the selected workflow owner around these primitives:
 
 - `todowrite` for visible progress and dependency tracking.
 - `task` for specialist subagent calls.
-- `_workspace/` files for large or durable intermediate artifacts.
+- Run-scoped `_workspace/harness/<team-id>/<run-id>/` files for large or durable intermediate artifacts.
 - Primary-agent integration for conflict resolution, final synthesis, and verification.
 
-Use `references/orchestrator-template.md` for templates.
+Use `references/orchestrator-template.md` only when a dedicated orchestration skill is justified; otherwise adapt the same contracts directly in `agents/<team-id>/lead.md`.
 
 #### 5-1. Data handoff protocol
 
@@ -246,13 +252,13 @@ Use `references/orchestrator-template.md` for templates.
 File-based handoff rules:
 
 - Create `_workspace/` under the active project.
-- Use names like `{phase}_{agent}_{artifact}.{ext}`, for example `_workspace/02_security_findings.md`.
+- Use a team and run namespace, then names like `{phase}_{agent}_{artifact}.{ext}`, for example `_workspace/harness/payments-review/20260716T090000Z/02_security_findings.md`.
 - Preserve intermediate files for audit and reruns.
 - Put final user-facing outputs where the user requested, not buried only in `_workspace/`.
 
 #### 5-2. Error handling
 
-Include realistic failure behavior in the orchestrator:
+Include realistic failure behavior in the workflow owner:
 
 - Retry a failed specialist once with narrower instructions.
 - If retry fails, proceed only if safe and clearly mark the missing section.
@@ -274,6 +280,7 @@ Standard procedure when a harness team is created or updated:
    ```
 
 3. **Keep `AGENTS.md` a lean base**: project identity, source-of-truth statement, global base rules, and a compact index table (harness name → instruction file → one-line goal). Never place full harness sections or change-history tables in `AGENTS.md`.
+4. **Create or update the component manifest** when supported, for example `.opencode/harness/teams/<team>.jsonc`. Use exact runtime IDs and explicit instruction paths so a plugin can toggle one component without parsing prompts or expanding a shared wildcard.
 
 Team instruction file template (`.opencode/instructions/<team>.md`):
 
@@ -287,7 +294,7 @@ Team instruction file template (`.opencode/instructions/<team>.md`):
 {who orchestrates, who executes, strict role boundaries}
 
 ## Trigger
-For {domain} work that needs repeatable multi-agent workflow, load `{orchestrator-skill-name}`. Simple questions can be answered directly.
+For non-trivial {domain} work, select `{team-id}/lead`. Simple questions can be answered directly.
 
 ## Change history
 | Date | Change | Target | Reason |
@@ -295,13 +302,13 @@ For {domain} work that needs repeatable multi-agent workflow, load `{orchestrato
 | {YYYY-MM-DD} | Initial harness | all | - |
 ```
 
-Do not duplicate skill bodies or directory trees in instruction files. The file system and orchestrator skill are the source of truth.
+Do not duplicate skill bodies, workflow phases, or directory trees in instruction files. The selected lead or orchestrator skill is the sole workflow source of truth.
 
 #### 5-4. Follow-up support
 
-The orchestrator must handle future work, not only the first run.
+The workflow owner must handle future work, not only the first run.
 
-1. Add follow-up triggers to the orchestrator description: rerun, update, revise, improve, use previous output, partial rerun, sync, audit.
+1. Add follow-up triggers to the workflow owner's description: rerun, update, revise, improve, use previous output, partial rerun, sync, audit.
 2. At the start of the workflow, inspect `_workspace/` and decide:
    - no `_workspace/` → initial run
    - `_workspace/` exists + partial change request → targeted rerun
@@ -394,13 +401,13 @@ Suggest harness updates when:
 
 - The same feedback appears twice.
 - A specialist repeatedly fails in the same way.
-- The user repeatedly bypasses the orchestrator to do manual work that should be automated.
+- The user repeatedly bypasses the workflow owner to do manual work that should be automated.
 
 #### 7-5. Operations and maintenance workflow
 
 Use this when the user asks for harness audit, status, cleanup, synchronization, or repair.
 
-1. **Audit state:** compare agent files, skill folders, orchestrator references, per-team instruction files, the `AGENTS.md` index, and config paths (including the `.opencode/opencode.jsonc` `instructions` array).
+1. **Audit state:** compare agent files, skill folders, the selected workflow owner, component manifests, per-team instruction files, the `AGENTS.md` index, and config paths (including the `.opencode/opencode.jsonc` `instructions` array).
 2. **Report drift:** list missing, stale, duplicate, and orphaned components.
 3. **Apply changes incrementally:** add/update/delete one component at a time.
 4. **Update change history:** record date, target, change, and reason.
@@ -412,7 +419,7 @@ After building or changing a harness, confirm:
 
 - [ ] Agents exist in `.opencode/agent(s)/` when reusable agents are required.
 - [ ] Skills exist in `.opencode/skill(s)/` or a configured `skills/` path.
-- [ ] One orchestrator skill describes data flow, task delegation, error handling, and test scenarios.
+- [ ] Exactly one workflow owner (normally `agents/<team-id>/lead.md`, optionally an orchestrator skill) describes data flow, task delegation, error handling, and test scenarios.
 - [ ] Execution mode is explicit: single-agent, parallel tasks, sequential pipeline, or hybrid.
 - [ ] No unsupported tool names or stale platform-specific paths remain.
 - [ ] Duplicate agent and skill review was completed.
@@ -420,6 +427,7 @@ After building or changing a harness, confirm:
 - [ ] Important skills were tested with realistic prompts or explicitly marked as not tested.
 - [ ] Trigger near-miss checks were considered.
 - [ ] Per-team instruction file (`.opencode/instructions/<team>.md`) created/updated, registered in `opencode.jsonc` `instructions` (AGENTS.md first), `AGENTS.md` index row current, and change history recorded in the team file.
+- [ ] Component manifest matches the namespaced files and config IDs when manifest-driven toggles are enabled.
 
 ## References
 

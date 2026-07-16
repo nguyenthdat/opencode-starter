@@ -1,16 +1,16 @@
 ---
 name: rust-coding
-description: "Comprehensive, idiomatic Rust guidance for the 2024 edition (Rust 1.85+): 179 prioritized rules across 14 categories plus edition-2024 migration. Use when writing, reviewing, refactoring, optimizing, or debugging Rust (.rs, Cargo.toml). Covers ownership and borrowing, error handling (thiserror/anyhow), async (tokio), API design, memory and performance optimization, type safety, testing, anti-patterns, resolver 3, RPIT precise capturing, unsafe extern blocks, unsafe attributes, static_mut_refs, and prelude additions."
+description: "Comprehensive idiomatic Rust guidance: 179 prioritized rules across 14 categories plus Rust 2024 migration. Use when writing, reviewing, refactoring, optimizing, or debugging Rust (`.rs`, `Cargo.toml`). Preserve the target project's edition and verified MSRV; use 2024-specific resolver, RPIT capture, unsafe extern/attribute, static_mut_refs, and prelude guidance only when the project targets that edition."
 compatibility: opencode
 metadata:
   domain: rust
   audience: software-engineer
-  edition: "2024"
+  edition: project-declared
 ---
 
 # Rust Best Practices
 
-Comprehensive guide for writing high-quality, idiomatic, and highly optimized Rust code. Contains 179 rules across 14 categories, prioritized by impact to guide LLMs in code generation and refactoring.
+Comprehensive guide for writing high-quality, idiomatic Rust code. Contains 179 rules across 14 categories, prioritized by impact. Project constraints override generic defaults: preserve the declared edition, MSRV, feature policy, and supported targets unless the user explicitly requests a migration.
 
 ## When to Apply
 
@@ -26,12 +26,12 @@ Reference these guidelines when:
 
 ## Rust 2024 Edition
 
-This skill targets the **2024 edition** (stable since Rust 1.85, February 2025). Set it in `Cargo.toml` and declare your minimum supported Rust version:
+Rust 2024 is stable since Rust 1.85. For an existing crate, preserve its edition and MSRV unless migration is in scope. For a new crate, use Edition 2024 only when the supported toolchain is at least 1.85, and set `rust-version` to the lowest version actually verified for the selected dependencies and language features:
 
 ```toml
 [package]
 edition = "2024"
-rust-version = "1.96.1"   # document your MSRV; the v3 resolver respects it
+rust-version = "1.85"   # raise this only when code or dependencies require it
 ```
 
 Edition 2024 is opt-in per crate and changes several defaults. Migrate with `cargo fix --edition`, then bump `edition` and run `cargo build` / `cargo test`. Key changes to apply in new and migrated code:
@@ -141,7 +141,7 @@ For the authoritative, complete list, consult the official Rust Edition Guide (2
 ### 5. Async/Await (HIGH)
 
 - [`async-tokio-runtime`](rules/async-tokio-runtime.md) - Use Tokio for production async runtime
-- [`async-no-lock-await`](rules/async-no-lock-await.md) - Never hold `Mutex`/`RwLock` across `.await`
+- [`async-no-lock-await`](rules/async-no-lock-await.md) - Never hold blocking lock guards across `.await`; keep async guard scopes justified and bounded
 - [`async-spawn-blocking`](rules/async-spawn-blocking.md) - Use `spawn_blocking` for CPU-intensive work
 - [`async-tokio-fs`](rules/async-tokio-fs.md) - Use `tokio::fs` not `std::fs` in async code
 - [`async-cancellation-token`](rules/async-cancellation-token.md) - Use `CancellationToken` for graceful shutdown
@@ -280,7 +280,7 @@ For the authoritative, complete list, consult the official Rust Edition Guide (2
 - [`anti-unwrap-abuse`](rules/anti-unwrap-abuse.md) - Don't use `.unwrap()` in production code
 - [`anti-expect-lazy`](rules/anti-expect-lazy.md) - Don't use `.expect()` for recoverable errors
 - [`anti-clone-excessive`](rules/anti-clone-excessive.md) - Don't clone when borrowing works
-- [`anti-lock-across-await`](rules/anti-lock-across-await.md) - Don't hold locks across `.await`
+- [`anti-lock-across-await`](rules/anti-lock-across-await.md) - Reject blocking guards and scrutinize necessary async guards across `.await`
 - [`anti-string-for-str`](rules/anti-string-for-str.md) - Don't accept `&String` when `&str` works
 - [`anti-vec-for-slice`](rules/anti-vec-for-slice.md) - Don't accept `&Vec<T>` when `&[T]` works
 - [`anti-index-over-iter`](rules/anti-index-over-iter.md) - Don't use indexing when iterators work
@@ -300,7 +300,7 @@ For the authoritative, complete list, consult the official Rust Edition Guide (2
 ```toml
 [package]
 edition = "2024"        # Rust 1.85+; enables the v3 resolver
-rust-version = "1.97"   # declare your MSRV
+rust-version = "1.85"   # replace with the lowest version your project verifies
 
 [profile.release]
 opt-level = 3
@@ -349,10 +349,7 @@ This skill provides rule identifiers for quick reference. When generating or rev
 
 ## Related Skills
 
-- [design-patterns](../design-patterns/SKILL.md) — choosing and implementing GoF/idiomatic patterns in Rust (traits, enums, typestate).
-- [testing-and-debugging](../testing-and-debugging/SKILL.md) — cross-language test strategy and debugging methodology (complements the `test-` rules).
-- [c-cpp-coding](../c-cpp-coding/SKILL.md) — the C/C++ side of FFI and `unsafe extern` boundaries.
-- [code-implementation](../code-implementation/SKILL.md) — the harness-wide change standard (context-first, minimal patches, validation, report).
+- [rust-design-patterns](../rust-design-patterns/SKILL.md) - choosing and implementing GoF and idiomatic patterns in Rust (traits, enums, typestate).
 - [rust-review](../rust-review/SKILL.md) — Trail of Bits security-audit checklists (unsafe/FFI/concurrency/panic-DoS finders) for reviewing/auditing Rust.
 
 ## Sources

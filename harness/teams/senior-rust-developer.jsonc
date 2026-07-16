@@ -1,0 +1,40 @@
+{
+  "$schema": "../team.schema.json",
+  "version": 1,
+  "id": "senior-rust-developer",
+  "enabled": true,
+  "description": "Production Rust planning, implementation, review, audit, testing, and documentation team.",
+  "entryAgent": "senior-rust-developer/lead",
+  "workspaceRoot": "_workspace/harness/senior-rust-developer",
+  "components": {
+    "agents": [
+      { "id": "senior-rust-developer/lead", "enabled": true, "required": true },
+      { "id": "senior-rust-developer/api-reviewer", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/architect", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/async-specialist", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/audit-adjudicator", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/audit-deduplicator", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/audit-worker", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/correctness-reviewer", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/docs-maintainer", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/implementer", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/performance-engineer", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/security-reviewer", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" },
+      { "id": "senior-rust-developer/testing-engineer", "enabled": true, "required": false, "model": "deepseek/deepseek-v4-pro" }
+    ],
+    "skills": [
+      { "id": "rust-coding", "enabled": true, "required": false },
+      { "id": "rust-design-patterns", "enabled": true, "required": false },
+      { "id": "rust-review", "enabled": true, "required": false },
+      { "id": "uniffi", "enabled": true, "required": false }
+    ],
+    "mcps": [
+      { "id": "docs.rs", "enabled": true, "required": false },
+      { "id": "crates.io", "enabled": true, "required": false },
+      { "id": "ferroscope", "enabled": true, "required": false }
+    ],
+    "instructions": [
+      { "id": ".opencode/instructions/senior-rust-developer.md", "enabled": true, "required": false }
+    ]
+  }
+}

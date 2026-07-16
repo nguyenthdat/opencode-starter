@@ -1,9 +1,9 @@
 # Harness / Skill / MCP Work
 
-Before planning or changing harness teams/agents, OpenCode skills or `SKILL.md`, MCP servers/tools, client integrations, or agent orchestration, load and follow these skills:
+Load only the workflow skill relevant to the change:
 
-- `harness`
-- `skill-creator`
-- `mcp-builder`
+- Load `harness` for harness teams, agents, team instructions, or orchestration architecture.
+- Also load `skill-creator` when creating or substantially changing a `SKILL.md`.
+- Also load `mcp-builder` only when creating or changing MCP servers, tools, transports, or client integrations.
 
 Use the skill loader; do not copy complete skill files into prompts manually.

@@ -1,10 +1,10 @@
 # anti-lock-across-await
 
-> Don't hold locks across await points
+> Do not hold blocking lock guards across await; justify and bound async lock guards
 
 ## Why It Matters
 
-Holding a `Mutex` or `RwLock` guard across an `.await` causes the lock to be held while the task is suspended. Other tasks waiting for the lock block indefinitely. With `std::sync::Mutex`, this is even worse—it can deadlock the entire runtime.
+Holding a `Mutex` or `RwLock` guard across an `.await` keeps the protected resource unavailable while the task is suspended. A blocking `std::sync` guard can deadlock the runtime and must not cross `.await`. A `tokio::sync` guard may cross `.await`, but only when one bounded async critical section must remain atomic; otherwise release it first.
 
 ## Bad
 
@@ -105,8 +105,8 @@ impl BetterService {
 |------|--------------------|
 | `std::sync::Mutex` guard | **NO** - can deadlock |
 | `std::sync::RwLock` guard | **NO** - can deadlock |
-| `tokio::sync::Mutex` guard | Allowed but blocks tasks |
-| `tokio::sync::RwLock` guard | Allowed but blocks tasks |
+| `tokio::sync::Mutex` guard | Allowed when async atomicity requires it; blocks waiters |
+| `tokio::sync::RwLock` guard | Allowed when async atomicity requires it; blocks waiters |
 | Owned values | Yes |
 | `Arc<T>` | Yes |
 | References | Depends on lifetime |

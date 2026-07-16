@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "team.schema.json",
+  "title": "OpenCode Harness Team Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "id", "enabled", "entryAgent", "workspaceRoot", "components"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "enabled": { "type": "boolean" },
+    "description": { "type": "string", "minLength": 1 },
+    "entryAgent": { "type": "string", "minLength": 1 },
+    "workspaceRoot": { "type": "string", "minLength": 1 },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agents", "skills", "mcps", "instructions"],
+      "properties": {
+        "agents": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component" }
+        },
+        "skills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component" }
+        },
+        "mcps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component" }
+        },
+        "instructions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "enabled", "required"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "enabled": { "type": "boolean" },
+        "required": { "type": "boolean" },
+        "model": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

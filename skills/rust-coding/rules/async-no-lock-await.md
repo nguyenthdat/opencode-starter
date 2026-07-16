@@ -1,10 +1,10 @@
 # async-no-lock-await
 
-> Never hold `Mutex`/`RwLock` across `.await`
+> Never hold a blocking lock guard across `.await`; hold an async guard only for a necessary, bounded critical section
 
 ## Why It Matters
 
-Holding a lock across an `.await` point can cause deadlocks and severely hurt performance. The task may be suspended while holding the lock, blocking all other tasks waiting for it - potentially indefinitely.
+Holding a blocking `std::sync` lock across `.await` can deadlock an async executor. Holding a `tokio::sync` guard across `.await` is supported but serializes all waiters for the full suspension, so require a real atomicity invariant and keep the critical section bounded.
 
 ## Bad
 
@@ -134,7 +134,7 @@ async fn read_heavy(state: &RwLock<State>) {
 
 // tokio::sync::Mutex: Async-aware, yields to runtime
 // - Use in async code
-// - Still don't hold across await points!
+// - It may cross await only when the protected async operation must be atomic
 
 // std::sync::Mutex in async (quick operation, OK):
 async fn quick_update(state: &std::sync::Mutex<State>) {
@@ -144,8 +144,8 @@ async fn quick_update(state: &std::sync::Mutex<State>) {
 // tokio::sync::Mutex (must use if lock scope has await):
 async fn must_await_inside(state: &tokio::sync::Mutex<State>) {
     let mut guard = state.lock().await;
-    // Only if you REALLY need the lock during async op
-    // (usually you don't - redesign instead)
+    update_protected_resource(&mut guard).await;
+    // Document why releasing and reacquiring would violate the invariant.
 }
 ```
 

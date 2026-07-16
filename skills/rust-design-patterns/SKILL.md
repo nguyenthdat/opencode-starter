@@ -1,6 +1,6 @@
 ---
-name: design-patterns
-description: "Rust design-pattern selection and implementation for architecture, refactors, reusable abstractions, runtime polymorphism, factories/builders, wrappers, state machines, commands, observers, and other GoF patterns. Use when non-trivial Rust design needs a pattern decision or when reviewing pattern-heavy code. Prefer idiomatic Rust constructs and simpler concrete code; do not use for naming a pattern after implementation without a real design pressure."
+name: rust-design-patterns
+description: "Rust design-pattern selection and implementation for architecture, refactors, reusable abstractions, runtime polymorphism, factories/builders, wrappers, state machines, commands, observers, and other GoF patterns. Use when non-trivial Rust design needs a pattern decision or when reviewing pattern-heavy Rust code. Prefer idiomatic Rust constructs and simpler concrete code; do not use for generic cross-language pattern questions or for naming a pattern without real design pressure."
 compatibility: opencode
 metadata:
   domain: rust

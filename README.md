@@ -38,11 +38,12 @@ the project root.
 | Path | Purpose |
 |---|---|
 | `opencode.jsonc` | Main config: agent, permissions, MCP servers, plugins, instructions glob |
-| `dynamic-skills.jsonc` | Skill search paths (project-local, vendor, team) |
+| `dynamic-skills.jsonc` | Skill search paths (project-local and vendor) |
 | `tui.json` | Terminal UI settings (theme, etc.) |
 | `instructions/` | Markdown instruction files loaded as system prompts |
-| `agents/` | Custom agent definitions |
+| `agents/` | Custom agents; reusable teams live under `agents/<team-id>/` |
 | `skills/` | Project-local OpenCode skills |
+| `harness/` | Schema and per-team component manifests for future plugin toggles |
 | `vendor/` | Git submodules pointing to external skill repos |
 | `plugins/` | Thin, auto-loaded OpenCode plugin entrypoints |
 | `packages/` | Bun workspace packages for shared/plugin TypeScript implementation |
@@ -103,9 +104,9 @@ bun run memory:warmup
 
 ### Instructions
 
-Instruction files in `.opencode/instructions/` are loaded from both
-`.opencode/instructions/*` and `~/.config/opencode/instructions/*` / `~/.opencode/instructions/*`
-(global user overrides).
+Project instruction files are registered individually in `opencode.jsonc`; global user
+overrides may still use `~/.config/opencode/instructions/*` or
+`~/.opencode/instructions/*`.
 
 ### MCP Servers
 
@@ -175,10 +176,35 @@ Skills are auto-discovered (no config change needed).
 
 ### 2. Add project-specific instructions
 
-Drop `.md` files into `.opencode/instructions/`. They are loaded via the glob
-`instructions: [".opencode/instructions/*"]` in `opencode.jsonc`.
+Drop `.md` files into `.opencode/instructions/` and register each path explicitly in
+`opencode.jsonc`. Explicit paths let a future plugin enable or disable one instruction
+without rebuilding a shared wildcard.
 
-### 3. Add project-local MCP servers
+### 3. Add a language or domain harness team
+
+Use a stable team namespace instead of placing language-specific roles at the root:
+
+```text
+agents/<team-id>/lead.md
+agents/<team-id>/architect.md
+agents/<team-id>/implementer.md
+agents/<team-id>/reviewer.md
+instructions/<team-id>.md
+harness/teams/<team-id>.jsonc
+```
+
+The runtime agent ID is `<team-id>/<role>`. The lead agent owns the complete workflow:
+run state, routing, task contracts, retries, review order, and completion gates. Keep
+specialized skills uniquely named, such as `rust-design-patterns`, so another language
+can add its own guidance without a discovery collision.
+
+Run artifacts belong under `_workspace/harness/<team-id>/<run-id>/`. Add the team
+instruction to the consuming project's instruction configuration and compact harness
+index when applicable. The team manifest is declarative component inventory for a future
+plugin that toggles exact agents, skills, MCPs, and instructions; it must not duplicate
+the lead's workflow prompt. See `harness/README.md`.
+
+### 4. Add project-local MCP servers
 
 Edit `.opencode/opencode.jsonc` and add entries under the `mcp` key:
 
@@ -194,7 +220,7 @@ Edit `.opencode/opencode.jsonc` and add entries under the `mcp` key:
 }
 ```
 
-### 4. Customize permissions
+### 5. Customize permissions
 
 Adjust the `permission` map in `opencode.jsonc` to tighten or loosen access for
 your project.
@@ -230,6 +256,7 @@ your-project/
 │   ├── tui.json
 │   ├── instructions/
 │   ├── agents/
+│   ├── harness/             # team component manifests and schema
 │   ├── skills/              # your project-local skills
 │   ├── vendor/              # nested submodules (vendor skills)
 │   ├── plugins/

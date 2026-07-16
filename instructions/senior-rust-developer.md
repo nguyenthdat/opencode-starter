@@ -1,4 +1,4 @@
-# Senior Rust Developer
+# Harness Team: Senior Rust Developer
 
 ## Goal
 
@@ -6,53 +6,44 @@ Deliver production-grade Rust architecture, implementation, review, testing, sec
 
 ## Activation
 
-Select `senior-rust-developer/rust-devloper-lead` as the primary agent for non-trivial Rust work. The lead must load `rust-orchestrator`. Tiny questions and one-line, low-risk edits can be handled directly without fan-out.
+Select `senior-rust-developer/lead` as the primary agent for non-trivial Rust work. The lead owns and executes the complete workflow. Tiny questions and one-line, low-risk edits can be handled directly without fan-out.
 
-## Topology
+## Runtime Boundary
 
-Use a flat topology:
-
-```text
-user -> rust-devloper-lead -> named specialist -> rust-devloper-lead
-```
-
-- Only `rust-devloper-lead` may call `task`.
-- Specialists never call, route to, or message another specialist.
-- A specialist returns `handoff_requests`; the lead decides whether another call is justified.
-- The lead invokes `senior-rust-developer/<agent-name>`, never `general` with copied prompt text.
-- Independent work runs in parallel, with at most three calls per wave. Dependent work is sequenced through current-run artifacts.
+`agents/senior-rust-developer/lead.md` is the source of truth for topology, routing, run state, task and return envelopes, retries, final-snapshot review, and Cargo gates. This instruction advertises activation and role boundaries. `harness/teams/senior-rust-developer.jsonc` is component inventory for future plugin toggles and never contains workflow prose.
 
 ## Agents
 
 | Layer | Agents | Boundary |
 |---|---|---|
-| Orchestrator | `rust-devloper-lead` | Sole task caller, run owner, integrator, conflict resolver, final decision owner |
-| Design | `rust-architect`, `async-rust-specialist`, `api-design-reviewer` | Architecture and specialist advice; no production implementation |
-| Production | `rust-implementer` | Sole owner of production-code changes in the normal pipeline |
-| Review | `rust-reviewer`, `security-reviewer`, `performance-engineer`, `api-design-reviewer`, `async-rust-specialist` | Evidence-based findings; no production fixes |
-| Quality | `docs-maintainer`, `testing-engineer` | Documentation changes and test/verification changes after code stabilizes |
-| Deep audit | `rust-review-worker`, `rust-review-dedup-judge`, `rust-review-fp-judge` | Parallel cluster review, deduplication, then adjudication; dispatched only by the lead |
+| Orchestrator | `senior-rust-developer/lead` | Sole task caller, run owner, integrator, conflict resolver, final decision owner |
+| Design | `architect`, `async-specialist`, `api-reviewer`, `security-reviewer`, `performance-engineer` | Mode-specific design advice; no production implementation |
+| Production | `implementer` | Sole owner of production-code changes in the normal pipeline |
+| Review | `correctness-reviewer`, `security-reviewer`, `performance-engineer`, `api-reviewer`, `async-specialist` | Evidence-based findings; no production fixes |
+| Quality | `docs-maintainer`, `testing-engineer` | Explicitly scoped documentation and test changes before final-snapshot review |
+| Deep audit | `audit-worker`, `audit-deduplicator`, `audit-adjudicator` | Parallel discovery, conservative deduplication, then correctness/security adjudication |
+
+All unqualified role names in this table resolve under `senior-rust-developer/`.
 
 ## Decision Ownership
 
-- Architect owns crate/module boundaries, key abstractions, dependency fit, and error strategy.
+- Architect integrates crate/module boundaries, key abstractions, dependency fit, and error strategy with accepted specialist constraints.
 - Implementer owns production edits but never approves its own work.
 - Rust Reviewer owns correctness and idiomatic Rust; Security Reviewer owns threat boundaries, unsafe, FFI, and supply chain.
 - Async Specialist owns concurrency-model and cancellation-safety advice; Performance Engineer owns measured performance claims.
 - API Reviewer owns public API and semver assessment; Docs Maintainer owns documentation quality; Testing Engineer owns coverage and verification gaps.
-- The lead alone decides routing, resolves disagreements, accepts skips, and declares the final state.
+- The lead alone decides routing, resolves disagreements, accepts skips, and declares the final state for the final reviewed snapshot.
 
 ## Shared State
 
-All current-run artifacts live under `_workspace/rust-engineer/` in the target project. `run_manifest.json` is the allowlist for the active run. Agents receive exact artifact paths from the lead and must not consume unrelated or superseded workspace files.
+Each run lives under `_workspace/harness/senior-rust-developer/<run_id>/` in the target project. `_workspace/harness/senior-rust-developer/current.json` points to the active run. Agents receive exact artifact and source paths from the lead and must not consume unrelated or superseded files.
 
 ## Skills
 
 | Skill | Purpose |
 |---|---|
-| `rust-orchestrator` | Routing, task contracts, workflow phases, retries, synthesis, and completion gates |
-| `rust-coding` | Rust 2024 implementation and review rules |
-| `design-patterns` | Evidence-based GoF pattern selection and idiomatic Rust implementation |
+| `rust-coding` | Project-compatible Rust implementation and review rules |
+| `rust-design-patterns` | Evidence-based pattern selection and idiomatic Rust implementation |
 | `rust-review` | Risk-based Rust security and correctness audit methodology |
 | `uniffi` | Rust bindings for Kotlin and Swift |
 
@@ -64,7 +55,7 @@ Apply only gates relevant to the task scope. For implementation work:
 - No unresolved BLOCKER or confirmed Critical/High finding remains.
 - New or changed non-trivial abstractions record the design pressure, selected pattern or simpler Rust construct, dispatch and ownership model, costs, and tested invariants.
 - Required public documentation and regression tests are present.
-- The manifest lists every accepted artifact and verification result.
+- The manifest lists every accepted artifact, post-review mutation, final snapshot, and verification result.
 - The lead reports called agents, intentionally skipped agents, changed files, findings, command results, and residual risk.
 
 ## Change History
@@ -72,6 +63,6 @@ Apply only gates relevant to the task scope. For implementation work:
 | Date | Change | Target | Reason |
 |---|---|---|---|
 | 2026-07-07 | Initial harness | all | Establish Rust specialist team |
-| 2026-07-09 | Strengthen lead orchestration | lead and orchestrator | Add delegation and synthesis protocols |
-| 2026-07-13 | Adopt named-agent flat orchestration | lead, orchestrator, all specialists | Prevent unsupported nested calls, copied prompts, overlapping edits, and stale artifact mixing |
-| 2026-07-14 | Add idiomatic Rust design-pattern guidance | design-patterns skill, lead, architect, implementer, reviewers, testing | Require evidence-based pattern selection and prevent class-oriented or over-abstracted translations |
+| 2026-07-13 | Adopt named-agent flat orchestration | lead and specialists | Prevent nested calls, overlapping edits, and stale artifact mixing |
+| 2026-07-14 | Add idiomatic Rust design-pattern guidance | rust-design-patterns and team roles | Require evidence-based abstraction choices |
+| 2026-07-16 | Namespace agents and make lead workflow owner | agents, instruction, component manifest | Support future language/domain teams and plugin-controlled components without orchestration skills |

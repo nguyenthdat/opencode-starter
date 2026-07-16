@@ -8,9 +8,8 @@
   //
   // Priority order (highest to lowest):
   //   1. Local            (skills)
-  //   2. Harness team     (harness/*/skills)
-  //   3. Vendor           (vendor/*/skills)
-  //   4. Shared/global    (absolute paths, e.g. ~/opencode-shared/skills)
+  //   2. Vendor           (vendor/*/skills)
+  //   3. Shared/global    (absolute paths, e.g. ~/opencode-shared/skills)
   // =========================================================================
 
   // $schema: "https://opencode.ai/dynamic-skills.schema.json",
@@ -22,7 +21,7 @@
   //   - Home directory expansion (~/)
   //   - Absolute paths
   // This repository is itself ~/.opencode, so paths are relative to that root.
-  "searchPaths": ["skills", "harness/*/skills", "vendor/*/skills"],
+  "searchPaths": ["skills", "vendor/*/skills"],
 
   // Cache time-to-live in seconds. Discovery results are cached
   // for this duration. Use skills_refresh to force re-scan.
