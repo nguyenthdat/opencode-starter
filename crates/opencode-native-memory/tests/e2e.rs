@@ -7,6 +7,7 @@ use opencode_native_memory::{
 
 #[test]
 #[ignore = "downloads the multilingual embedding model on first run"]
+#[allow(clippy::too_many_lines)]
 fn stores_recalls_and_forgets_project_memory() {
     let temp = tempfile::tempdir().expect("create temp dir");
     let project = temp.path().join("project");
@@ -177,10 +178,12 @@ fn stores_recalls_and_forgets_project_memory() {
             agent_scope_key: None,
         })
         .expect("list matching session family");
-    assert!(visible
-        .memories
-        .iter()
-        .any(|memory| memory.id == session_memory.id));
+    assert!(
+        visible
+            .memories
+            .iter()
+            .any(|memory| memory.id == session_memory.id)
+    );
 
     let forgotten = engine
         .forget(&ForgetRequest {
