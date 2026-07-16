@@ -378,7 +378,7 @@ Do not force feedback; provide the opportunity.
 
 #### 7-3. Change history
 
-Record significant changes in the affected team's instruction file (`.opencode/instructions/<team>.md`), never in the lean `AGENTS.md` base:
+Record significant changes in the affected team's instruction file (`.opencode/changelog/<team>.md`), never record in the lean `AGENTS.md` file:
 
 ```markdown
 **Change history:**
