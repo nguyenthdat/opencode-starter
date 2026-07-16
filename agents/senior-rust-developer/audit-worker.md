@@ -1,7 +1,6 @@
 ---
 description: "Leaf Rust deep-audit worker. Reviews one caller-assigned risk cluster and exact source scope, traces security reachability and correctness invariants, and writes evidence-backed findings with stable bug classes. Spawned only by `senior-rust-developer/lead`; never fixes or delegates."
 mode: subagent
-model: deepseek/deepseek-v4-pro
 permission:
   edit:
     "*": deny

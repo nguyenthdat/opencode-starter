@@ -1,7 +1,8 @@
 use std::fs;
 
 use opencode_native_memory::{
-    ForgetRequest, GetRequest, MemoryConfig, MemoryEngine, MemoryKind, SearchRequest, StoreRequest,
+    ForgetRequest, GetRequest, MemoryConfig, MemoryEngine, MemoryKind, MemoryOrigin, MemoryScope,
+    SearchRequest, StoreRequest,
 };
 
 #[test]
@@ -21,6 +22,12 @@ fn stores_recalls_and_forgets_project_memory() {
             importance: 0.9,
             tags: vec!["rust".to_string(), "zvec".to_string()],
             source: Some("e2e-test".to_string()),
+            scope: MemoryScope::Project,
+            scope_key: None,
+            origin: MemoryOrigin::Manual,
+            expires_in_days: None,
+            code_paths: Vec::new(),
+            revive: false,
         })
         .expect("store Rust decision");
     engine
@@ -31,15 +38,28 @@ fn stores_recalls_and_forgets_project_memory() {
             importance: 0.4,
             tags: vec!["ui".to_string()],
             source: Some("e2e-test".to_string()),
+            scope: MemoryScope::Project,
+            scope_key: None,
+            origin: MemoryOrigin::Manual,
+            expires_in_days: None,
+            code_paths: Vec::new(),
+            revive: false,
         })
         .expect("store unrelated preference");
 
     let results = engine
         .search(&SearchRequest {
             query: "Memory server được viết bằng ngôn ngữ và database nào?".to_string(),
-            limit: 2,
+            limit: Some(2),
+            max_results: 20,
+            budget_chars: 6_000,
             kinds: Vec::new(),
+            scopes: Vec::new(),
+            session_scope_key: None,
+            agent_scope_key: None,
             min_score: 0.0,
+            include_stale: false,
+            track_feedback: true,
         })
         .expect("search memories");
     assert_eq!(

@@ -1,12 +1,14 @@
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
-use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use opencode_native_memory::{
-    ForgetRequest, GetRequest, MemoryConfig, MemoryEngine, SearchRequest, StoreRequest,
+    DeleteRequest, DoctorRequest, FeedbackRequest, ForgetRequest, GetRequest, ListRequest,
+    MemoryConfig, MemoryEngine, PurgeRequest, SearchRequest, StoreRequest, SyncSharedRequest,
+    UpdateRequest,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 const MAX_REQUEST_BYTES: usize = 1_048_576;
 
@@ -87,12 +89,44 @@ impl Service {
                 let params = serde_json::from_value::<GetRequest>(request.params)?;
                 serde_json::to_value(self.engine()?.get(&params)?)?
             }
+            "list" => {
+                let params = serde_json::from_value::<ListRequest>(request.params)?;
+                serde_json::to_value(self.engine()?.list(&params)?)?
+            }
+            "update" => serde_json::to_value(self.engine()?.update(serde_json::from_value::<
+                UpdateRequest,
+            >(
+                request.params
+            )?)?)?,
+            "delete" => {
+                let params = serde_json::from_value::<DeleteRequest>(request.params)?;
+                serde_json::to_value(self.engine()?.delete(&params)?)?
+            }
             "forget" => {
                 let params = serde_json::from_value::<ForgetRequest>(request.params)?;
                 serde_json::to_value(self.engine()?.forget(&params)?)?
             }
+            "purge" => {
+                let params = serde_json::from_value::<PurgeRequest>(request.params)?;
+                serde_json::to_value(self.engine()?.purge(&params)?)?
+            }
+            "feedback" => {
+                let params = serde_json::from_value::<FeedbackRequest>(request.params)?;
+                serde_json::to_value(self.engine()?.feedback(&params)?)?
+            }
+            "sync_shared" => {
+                serde_json::to_value(self.engine()?.sync_shared(serde_json::from_value::<
+                    SyncSharedRequest,
+                >(
+                    request.params
+                )?)?)?
+            }
             "status" => serde_json::to_value(self.engine()?.status()?)?,
             "optimize" => serde_json::to_value(self.engine()?.optimize()?)?,
+            "doctor" => {
+                let params = serde_json::from_value::<DoctorRequest>(request.params)?;
+                serde_json::to_value(self.engine()?.doctor(&params)?)?
+            }
             "shutdown" => return Ok((RpcResponse::success(id, json!({ "stopped": true })), true)),
             method => return Err(anyhow!("unknown native memory method: {method}")),
         };
@@ -104,15 +138,10 @@ fn main() -> Result<()> {
     let config = MemoryConfig::discover()?;
     match std::env::args().nth(1).as_deref() {
         Some("--doctor") => {
+            let engine = MemoryEngine::open(config)?;
             println!(
                 "{}",
-                serde_json::to_string_pretty(&json!({
-                    "ok": true,
-                    "project_root": config.project_root(),
-                    "project_id": config.project_id(),
-                    "collection_path": config.collection_dir(),
-                    "model_cache": config.model_cache(),
-                }))?
+                serde_json::to_string_pretty(&engine.doctor(&DoctorRequest { deep: true })?)?
             );
             Ok(())
         }

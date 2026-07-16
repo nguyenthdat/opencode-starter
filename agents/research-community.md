@@ -3,6 +3,7 @@ description: Research subagent for community opinions, field reports, issue trac
 mode: subagent
 temperature: 0.25
 steps: 14
+model: deepseek/deepseek-v4-pro
 permission:
   edit: allow
   bash: deny

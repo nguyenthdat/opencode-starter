@@ -1,7 +1,6 @@
 ---
 description: "Rust testing engineer for unit, integration, doc, property, fuzz, benchmark, and CI verification. Use only with explicit test paths and invariants from the Senior Rust Developer lead; reports every code-adjacent mutation before final-snapshot review."
 mode: subagent
-model: deepseek/deepseek-v4-pro
 permission:
   edit:
     "*": deny

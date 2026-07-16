@@ -1,7 +1,6 @@
 ---
 description: "Rust public API specialist for ergonomics, semver, trait and type contracts, features, naming, and misuse resistance. Use with explicit `design` or `review` mode in the Senior Rust Developer harness; provides constraints and findings without production edits."
 mode: subagent
-model: deepseek/deepseek-v4-pro
 permission:
   edit:
     "*": deny

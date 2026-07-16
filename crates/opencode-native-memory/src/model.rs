@@ -37,6 +37,93 @@ impl MemoryKind {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryScope {
+    Session,
+    Agent,
+    #[default]
+    Project,
+    Repository,
+}
+
+impl MemoryScope {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Session => "session",
+            Self::Agent => "agent",
+            Self::Project => "project",
+            Self::Repository => "repository",
+        }
+    }
+
+    pub(crate) const fn precedence(self) -> u8 {
+        match self {
+            Self::Session => 4,
+            Self::Agent => 3,
+            Self::Project => 2,
+            Self::Repository => 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryOrigin {
+    #[default]
+    Manual,
+    AutoCompaction,
+    SharedMarkdown,
+    Legacy,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FeedbackEvent {
+    Injected,
+    Used,
+    Ignored,
+    Error,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeleteReason {
+    Obsolete,
+    Incorrect,
+    #[default]
+    UserDeleted,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct CodeAnchor {
+    pub path: String,
+    pub sha256: String,
+    #[serde(default)]
+    pub git_sha: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FeedbackStats {
+    pub injected: u64,
+    pub used: u64,
+    pub ignored: u64,
+    pub error: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ScoreBreakdown {
+    pub dense: f32,
+    pub reciprocal_rank: f32,
+    pub lexical: f32,
+    pub channel_agreement: f32,
+    pub calibrated: f32,
+    pub retention: f32,
+    pub feedback: f32,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct StoreRequest {
@@ -51,6 +138,18 @@ pub struct StoreRequest {
     pub tags: Vec<String>,
     #[serde(default)]
     pub source: Option<String>,
+    #[serde(default)]
+    pub scope: MemoryScope,
+    #[serde(default)]
+    pub scope_key: Option<String>,
+    #[serde(default)]
+    pub origin: MemoryOrigin,
+    #[serde(default)]
+    pub expires_in_days: Option<u32>,
+    #[serde(default)]
+    pub code_paths: Vec<String>,
+    #[serde(default)]
+    pub revive: bool,
 }
 
 const fn default_importance() -> f32 {
@@ -61,20 +160,38 @@ const fn default_importance() -> f32 {
 #[serde(deny_unknown_fields)]
 pub struct SearchRequest {
     pub query: String,
-    #[serde(default = "default_limit")]
-    pub limit: usize,
+    #[serde(default)]
+    pub limit: Option<usize>,
+    #[serde(default = "default_max_results")]
+    pub max_results: usize,
+    #[serde(default = "default_budget_chars")]
+    pub budget_chars: usize,
     #[serde(default)]
     pub kinds: Vec<MemoryKind>,
+    #[serde(default)]
+    pub scopes: Vec<MemoryScope>,
+    #[serde(default)]
+    pub session_scope_key: Option<String>,
+    #[serde(default)]
+    pub agent_scope_key: Option<String>,
     #[serde(default = "default_min_score")]
     pub min_score: f32,
+    #[serde(default)]
+    pub include_stale: bool,
+    #[serde(default)]
+    pub track_feedback: bool,
 }
 
-const fn default_limit() -> usize {
-    5
+const fn default_max_results() -> usize {
+    20
+}
+
+const fn default_budget_chars() -> usize {
+    6_000
 }
 
 const fn default_min_score() -> f32 {
-    0.2
+    0.42
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -85,8 +202,116 @@ pub struct GetRequest {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct ListRequest {
+    #[serde(default)]
+    pub kinds: Vec<MemoryKind>,
+    #[serde(default)]
+    pub scopes: Vec<MemoryScope>,
+    #[serde(default)]
+    pub include_expired: bool,
+    #[serde(default)]
+    pub include_stale: bool,
+    #[serde(default)]
+    pub offset: usize,
+    #[serde(default = "default_list_limit")]
+    pub limit: usize,
+}
+
+const fn default_list_limit() -> usize {
+    50
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateRequest {
+    pub id: String,
+    #[serde(default)]
+    pub expected_updated_at_ms: Option<i64>,
+    #[serde(default)]
+    pub content: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub kind: Option<MemoryKind>,
+    #[serde(default)]
+    pub importance: Option<f32>,
+    #[serde(default)]
+    pub tags: Option<Vec<String>>,
+    #[serde(default)]
+    pub scope: Option<MemoryScope>,
+    #[serde(default)]
+    pub scope_key: Option<String>,
+    #[serde(default)]
+    pub expires_in_days: Option<u32>,
+    #[serde(default)]
+    pub clear_expiry: bool,
+    #[serde(default)]
+    pub code_paths: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteRequest {
+    pub ids: Vec<String>,
+    #[serde(default = "default_true")]
+    pub tombstone: bool,
+    #[serde(default)]
+    pub reason: DeleteReason,
+}
+
+const fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ForgetRequest {
     pub ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PurgeRequest {
+    pub project_id: String,
+    #[serde(default = "default_true")]
+    pub keep_tombstones: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FeedbackRequest {
+    pub retrieval_id: String,
+    pub event: FeedbackEvent,
+    #[serde(default)]
+    pub memory_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct SharedMemoryInput {
+    pub source: String,
+    pub content: String,
+    pub title: String,
+    pub kind: MemoryKind,
+    #[serde(default = "default_importance")]
+    pub importance: f32,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub code_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct SyncSharedRequest {
+    pub records: Vec<SharedMemoryInput>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DoctorRequest {
+    #[serde(default)]
+    pub deep: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -100,8 +325,16 @@ pub struct MemoryRecord {
     pub source: String,
     pub created_at_ms: i64,
     pub updated_at_ms: i64,
+    pub scope: MemoryScope,
+    pub origin: MemoryOrigin,
+    pub expires_at_ms: Option<i64>,
+    pub stale: bool,
+    pub code_anchors: Vec<CodeAnchor>,
+    pub feedback: FeedbackStats,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub score: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub score_breakdown: Option<ScoreBreakdown>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -110,19 +343,64 @@ pub struct StoreResponse {
     pub inserted: bool,
     pub content_hash: String,
     pub updated_at_ms: i64,
+    pub scope: MemoryScope,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SearchResponse {
     pub query: String,
+    pub retrieval_id: Option<String>,
+    pub count: usize,
+    pub candidates_considered: usize,
+    pub budget_chars: usize,
+    pub used_chars: usize,
+    pub abstained: bool,
+    pub abstention_reason: Option<String>,
+    pub score_version: &'static str,
+    pub memories: Vec<MemoryRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ListResponse {
+    pub total: usize,
+    pub offset: usize,
     pub count: usize,
     pub memories: Vec<MemoryRecord>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ForgetResponse {
+pub struct UpdateResponse {
+    pub id: String,
+    pub updated_at_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeleteResponse {
     pub requested: usize,
     pub deleted: u64,
+    pub tombstones_created: usize,
+}
+
+pub type ForgetResponse = DeleteResponse;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PurgeResponse {
+    pub deleted: u64,
+    pub tombstones_retained: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeedbackResponse {
+    pub retrieval_id: String,
+    pub recorded: bool,
+    pub affected: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SyncSharedResponse {
+    pub imported: usize,
+    pub removed: usize,
+    pub rejected: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -142,6 +420,10 @@ pub struct StatusResponse {
     pub project_id: String,
     pub collection_path: String,
     pub document_count: u64,
+    pub state_schema_version: u32,
+    pub metadata_count: usize,
+    pub tombstone_count: usize,
+    pub retrieval_count: usize,
     pub indexes: Vec<IndexStatus>,
 }
 
@@ -149,4 +431,24 @@ pub struct StatusResponse {
 pub struct OptimizeResponse {
     pub optimized: bool,
     pub document_count: u64,
+    pub pruned_expired: usize,
+    pub pruned_retrievals: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DoctorResponse {
+    pub ok: bool,
+    pub project_root: String,
+    pub project_id: String,
+    pub collection_path: String,
+    pub state_path: String,
+    pub model_cache: String,
+    pub document_count: u64,
+    pub metadata_count: usize,
+    pub stale_count: usize,
+    pub expired_count: usize,
+    pub tombstone_count: usize,
+    pub retrieval_count: usize,
+    pub git_sha: Option<String>,
+    pub warnings: Vec<String>,
 }

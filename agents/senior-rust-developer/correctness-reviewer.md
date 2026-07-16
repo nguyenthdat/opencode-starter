@@ -1,7 +1,6 @@
 ---
 description: "Independent Rust correctness reviewer for ownership, borrowing, errors, invariants, panic behavior, unsafe call sites, and idiomatic maintainability. Use on a named stable snapshot in the Senior Rust Developer harness; reports evidence and never fixes code."
 mode: subagent
-model: deepseek/deepseek-v4-pro
 permission:
   edit:
     "*": deny

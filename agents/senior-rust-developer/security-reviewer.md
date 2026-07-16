@@ -1,7 +1,6 @@
 ---
 description: "Rust security specialist for threat modeling and final review of unsafe code, FFI, untrusted input, paths, auth, secrets, concurrency, and dependencies. Use with explicit `design` or `review` mode in the Senior Rust Developer harness; never edits reviewed code."
 mode: subagent
-model: deepseek/deepseek-v4-pro
 permission:
   edit:
     "*": deny

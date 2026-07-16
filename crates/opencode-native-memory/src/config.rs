@@ -73,6 +73,11 @@ impl MemoryConfig {
     pub fn collection_dir(&self) -> PathBuf {
         self.project_data_dir().join("zvec")
     }
+
+    #[must_use]
+    pub fn state_path(&self) -> PathBuf {
+        self.project_data_dir().join("state.json")
+    }
 }
 
 fn env_path(name: &str) -> Option<PathBuf> {
@@ -114,7 +119,7 @@ pub(crate) fn hash_hex(input: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{MemoryConfig, discover_project_root};
+    use super::{discover_project_root, MemoryConfig};
     use std::fs;
 
     #[test]

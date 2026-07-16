@@ -1,7 +1,6 @@
 ---
 description: "Senior Rust architecture specialist for crate decomposition, module boundaries, type and trait design, error strategy, dependency fit, and integration of async, API, security, and performance constraints. Use in the Senior Rust Developer design phase; does not implement production code."
 mode: subagent
-model: deepseek/deepseek-v4-pro
 permission:
   edit:
     "*": deny

@@ -1,7 +1,8 @@
 ---
 description: Search subagent for collecting, validating, and summarizing information from external sources. Use when the user asks to search the web, look up technical docs, find code on GitHub, research a topic, scrape pages, or gather any external information. Priority tools are crawlberg, exa, cloakbrowser, webfetch, and GitHub MCP.
 mode: subagent
-steps: 10
+steps: 40
+model: deepseek/deepseek-v4-pro
 permission:
   edit: deny
   bash: deny

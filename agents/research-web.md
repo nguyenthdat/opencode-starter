@@ -2,7 +2,8 @@
 description: Research subagent for official, primary, standards, vendor, and reputable web sources. Supports Quick Research with Exa/Crawlberg and Deep Research with CloakBrowser.
 mode: subagent
 temperature: 0.2
-steps: 14
+steps: 50
+model: deepseek/deepseek-v4-pro
 permission:
   edit: allow
   bash: deny

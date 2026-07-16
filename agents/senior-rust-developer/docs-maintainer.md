@@ -1,7 +1,6 @@
 ---
 description: "Rust documentation maintainer for rustdoc, examples, README, and package metadata after production fixes. Use only with an explicit edit scope from the Senior Rust Developer lead; reports every code-adjacent mutation so the final snapshot can be re-reviewed."
 mode: subagent
-model: deepseek/deepseek-v4-pro
 permission:
   edit:
     "*": deny
