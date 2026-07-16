@@ -1,25 +1,33 @@
 import type { Config, Plugin } from "@opencode-ai/plugin";
+import { randomUUID } from "node:crypto";
 import type { Dirent } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
-import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
+import {
+  applyEdits,
+  modify,
+  parse,
+  printParseErrorCode,
+  type ParseError,
+} from "jsonc-parser";
 
 const COMPONENT_KINDS = ["agents", "skills", "mcps", "instructions"] as const;
 const WILDCARD_RE = /[*?\[\]{}]/;
 
 type ComponentKind = (typeof COMPONENT_KINDS)[number];
+export type HarnessComponentKind = ComponentKind;
 type PermissionAction = "allow" | "ask" | "deny";
 type PermissionRules = Record<string, PermissionAction>;
 type PermissionMap = Record<string, PermissionAction | PermissionRules>;
 
-interface TeamComponent {
+export interface TeamComponent {
   id: string;
   enabled: boolean;
   required: boolean;
   model?: string;
 }
 
-interface TeamManifest {
+export interface TeamManifest {
   version: 1;
   id: string;
   enabled: boolean;
@@ -76,6 +84,18 @@ export interface HarnessTeamsPluginOptions {
   teamsDirectory?: string;
   schemaPath?: string;
 }
+
+export type HarnessToggleRequest =
+  | {
+      teamID: string;
+      enabled: boolean;
+    }
+  | {
+      teamID: string;
+      componentKind: HarnessComponentKind;
+      componentID: string;
+      enabled: boolean;
+    };
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -205,6 +225,15 @@ function validateManifest(value: unknown, schema: JsonObject, file: string): Tea
   return value as TeamManifest;
 }
 
+async function loadTeamSchema(options: HarnessTeamsPluginOptions): Promise<JsonObject> {
+  const schemaPath = resolve(options.root, options.schemaPath ?? "harness/team.schema.json");
+  const parsedSchema = parseJsoncFile(schemaPath, await readFile(schemaPath, "utf8"));
+  if (!isObject(parsedSchema)) {
+    throw new Error(`[harness-teams] ${schemaPath} must contain a JSON Schema object`);
+  }
+  return parsedSchema;
+}
+
 async function loadManifests(options: HarnessTeamsPluginOptions): Promise<LoadedManifest[]> {
   const root = resolve(options.root);
   const teamsDirectory = resolve(root, options.teamsDirectory ?? "harness/teams");
@@ -222,11 +251,7 @@ async function loadManifests(options: HarnessTeamsPluginOptions): Promise<Loaded
     .sort();
   if (files.length === 0) return [];
 
-  const schemaPath = resolve(root, options.schemaPath ?? "harness/team.schema.json");
-  const parsedSchema = parseJsoncFile(schemaPath, await readFile(schemaPath, "utf8"));
-  if (!isObject(parsedSchema)) {
-    throw new Error(`[harness-teams] ${schemaPath} must contain a JSON Schema object`);
-  }
+  const parsedSchema = await loadTeamSchema(options);
 
   const manifests: LoadedManifest[] = [];
   for (const file of files) {
@@ -241,6 +266,71 @@ async function loadManifests(options: HarnessTeamsPluginOptions): Promise<Loaded
     manifests.push({ file, manifest });
   }
   return manifests;
+}
+
+export async function listHarnessTeams(
+  options: HarnessTeamsPluginOptions,
+): Promise<TeamManifest[]> {
+  const loaded = await loadManifests({ ...options, root: resolve(options.root) });
+  buildPlan(loaded);
+  return loaded.map(({ manifest }) => manifest);
+}
+
+async function writeFileAtomic(path: string, source: string): Promise<void> {
+  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, source, "utf8");
+    await rename(temporary, path);
+  } finally {
+    await unlink(temporary).catch(() => undefined);
+  }
+}
+
+export async function setHarnessToggle(
+  options: HarnessTeamsPluginOptions,
+  request: HarnessToggleRequest,
+): Promise<TeamManifest> {
+  const normalizedOptions = { ...options, root: resolve(options.root) };
+  const loaded = await loadManifests(normalizedOptions);
+  buildPlan(loaded);
+
+  const target = loaded.find(({ manifest }) => manifest.id === request.teamID);
+  if (!target) {
+    throw new Error(`[harness-teams] Unknown team "${request.teamID}"`);
+  }
+
+  const jsonPath: (string | number)[] = ["enabled"];
+  if ("componentKind" in request) {
+    const components = target.manifest.components[request.componentKind];
+    const index = components.findIndex((component) => component.id === request.componentID);
+    if (index === -1) {
+      throw new Error(
+        `[harness-teams] Unknown ${request.componentKind} component "${request.componentID}" in team "${request.teamID}"`,
+      );
+    }
+    jsonPath.splice(0, jsonPath.length, "components", request.componentKind, index, "enabled");
+  }
+
+  const source = await readFile(target.file, "utf8");
+  const edits = modify(source, jsonPath, request.enabled, {
+    formattingOptions: { insertSpaces: true, tabSize: 2 },
+  });
+  if (edits.length === 0) return target.manifest;
+
+  const nextSource = applyEdits(source, edits);
+  const schema = await loadTeamSchema(normalizedOptions);
+  const nextManifest = validateManifest(
+    parseJsoncFile(target.file, nextSource),
+    schema,
+    target.file,
+  );
+  const nextLoaded = loaded.map((item) =>
+    item.file === target.file ? { ...item, manifest: nextManifest } : item,
+  );
+  buildPlan(nextLoaded);
+
+  await writeFileAtomic(target.file, nextSource);
+  return nextManifest;
 }
 
 function buildPlan(loaded: LoadedManifest[]): HarnessPlan {

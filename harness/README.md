@@ -38,7 +38,14 @@ Keep the team enabled and change one component for a targeted toggle:
 }
 ```
 
-The effective state is `team.enabled && component.enabled`. OpenCode loads config and plugins once, so quit and restart OpenCode after changing a manifest.
+The effective state is `team.enabled && component.enabled`. Manual manifest edits require an instance reload or OpenCode restart.
+
+## Runtime Controls
+
+- Run `/harness` to open the team and component switcher.
+- Open `Ctrl+P` and select `Harness Teams` to open the same switcher.
+- The switcher validates the full registry, preserves JSONC comments, writes atomically, and reloads the current OpenCode instance.
+- Sessions are preserved across the reload. Confirm carefully when the current session is busy because active work can be interrupted.
 
 ## Plugin Rules
 

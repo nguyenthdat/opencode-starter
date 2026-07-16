@@ -3,13 +3,18 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { createHarnessTeamsPlugin } from "@opencode-config/harness-teams";
+import {
+  createHarnessTeamsPlugin,
+  listHarnessTeams,
+  setHarnessToggle,
+} from "@opencode-config/harness-teams";
 
 const ROOT = resolve(import.meta.dir, "..");
 const TEAM_SCHEMA = readFileSync(join(ROOT, "harness", "team.schema.json"), "utf8");
@@ -199,4 +204,32 @@ describe("harness team plugin", () => {
       "can re-include disabled instruction",
     );
   });
+
+  it("updates JSONC switches atomically while preserving comments", async () => {
+    const root = testRoot();
+    writeManifest(root, "rust", manifest());
+
+    await setHarnessToggle(rootOptions(root), { teamID: "rust", enabled: false });
+    await setHarnessToggle(rootOptions(root), {
+      teamID: "rust",
+      componentKind: "skills",
+      componentID: "rust-review",
+      enabled: false,
+    });
+
+    const source = readFileSync(join(root, "harness", "teams", "rust.jsonc"), "utf8");
+    const [team] = await listHarnessTeams(rootOptions(root));
+    expect(source).toStartWith("// Team manifest\n");
+    expect(team?.enabled).toBe(false);
+    expect(team?.components.skills.find((component) => component.id === "rust-review")?.enabled).toBe(
+      false,
+    );
+    expect(readdirSync(join(root, "harness", "teams")).every((file) => !file.endsWith(".tmp"))).toBe(
+      true,
+    );
+  });
 });
+
+function rootOptions(root: string) {
+  return { root };
+}

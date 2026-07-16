@@ -1,4 +1,4 @@
-# opencode-base
+# OpenCode Starter Kit
 
 Shared OpenCode configuration skeleton designed to be consumed as a **git submodule** at
 `<project>/.opencode`. Brings consistent agents, instructions, MCP servers, skills,
@@ -219,7 +219,9 @@ Run artifacts belong under `_workspace/harness/<team-id>/<run-id>/`. Add the tea
 instruction to the consuming project's instruction configuration and compact harness
 index when applicable. The team manifest is declarative component inventory for the
 plugin that toggles exact agents, skills, MCPs, and instructions; it must not duplicate
-the lead's workflow prompt. See `harness/README.md`.
+the lead's workflow prompt. Use `/harness` or `Ctrl+P` → `Harness Teams` to update
+manifest switches and reload the current instance without quitting the TUI. See
+`harness/README.md`.
 
 ### 4. Add project-local MCP servers
 

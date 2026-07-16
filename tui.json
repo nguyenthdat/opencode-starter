@@ -1,1 +1,5 @@
-{ "$schema": "https://opencode.ai/tui.json", "theme": "jetbrains-islands-dark" }
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "theme": "jetbrains-islands-dark",
+  "plugin": ["./packages/harness-teams"]
+}
