@@ -14,10 +14,10 @@
         "typescript": "^5.9.3",
       },
     },
-    "packages/native-diagnostics": {
-      "name": "@opencode-config/native-diagnostics",
+    "packages/native-memory": {
+      "name": "@opencode-config/native-memory",
       "peerDependencies": {
-        "@opencode-ai/plugin": "1.18.1",
+        "@opencode-ai/plugin": "1.18.2",
       },
     },
     "packages/plugin-kit": {
@@ -46,7 +46,7 @@
 
     "@opencode-ai/sdk": ["@opencode-ai/sdk@1.18.1", "", { "dependencies": { "cross-spawn": "7.0.6" } }, "sha512-2mX9SXSDVtZ9i2yCOiXDXKx981EJp/ObUtaThUNn16jkjfwX/1j8r+UR/BKUmBLYq+zle7TtpXreXuO+gtVjKA=="],
 
-    "@opencode-config/native-diagnostics": ["@opencode-config/native-diagnostics@workspace:packages/native-diagnostics"],
+    "@opencode-config/native-memory": ["@opencode-config/native-memory@workspace:packages/native-memory"],
 
     "@opencode-config/plugin-kit": ["@opencode-config/plugin-kit@workspace:packages/plugin-kit"],
 

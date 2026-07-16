@@ -7,14 +7,16 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "bun test",
-    "test:native": "bun run native:build && bun test ./tests/native-diagnostics.integration.ts",
-    "native:build": "cargo build -p opencode-native-diagnostics",
-    "native:build:release": "cargo build -p opencode-native-diagnostics --release",
+    "test:memory": "bun test ./tests/native-memory-plugin.test.ts",
+    "test:memory:e2e": "cargo test -p opencode-native-memory --test e2e -- --ignored --nocapture",
+    "memory:build": "bun scripts/build-native-memory.ts",
+    "memory:build:release": "bun scripts/build-native-memory.ts --release",
+    "memory:warmup": "target/release/opencode-native-memory --warmup",
     "check:rust": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace --all-features",
-    "check": "bun run typecheck && bun test && bun run check:rust && bun run test:native"
+    "check": "bun run typecheck && bun test && bun run check:rust"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "1.18.1",
+    "@opencode-ai/plugin": "1.18.2",
     "jsonc-parser": "^3.3.1",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"

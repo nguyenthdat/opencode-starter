@@ -1,11 +1,11 @@
 {
-  "name": "@opencode-config/native-diagnostics",
+  "name": "@opencode-config/native-memory",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": "1.18.1"
+    "@opencode-ai/plugin": "1.18.2"
   }
 }
