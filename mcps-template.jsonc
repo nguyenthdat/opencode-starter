@@ -16,7 +16,7 @@
       "type": "local",
       "command": ["agentic-memory-mcp", "serve"],
     },
-    "codebase-memory-mcp": { "enabled": true, "type": "local", "command": ["codebase-memory-mcp"] },
+    "codebase-memory": { "enabled": true, "type": "local", "command": ["codebase-memory-mcp"] },
     "memory": { "type": "local", "command": ["bunx", "-y", "@modelcontextprotocol/server-memory"] },
     "git": { "type": "local", "command": ["uvx", "mcp-server-git"] },
     "github": {

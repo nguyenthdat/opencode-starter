@@ -56,11 +56,6 @@
   "lsp": true,
   "mcp": {
     "codebase-memory": { "enabled": true, "type": "local", "command": ["codebase-memory-mcp"] },
-    "agentic-memory": {
-      "enabled": true,
-      "type": "local",
-      "command": ["agentic-memory-mcp", "serve"],
-    },
     "git": { "enabled": true, "command": ["uvx", "mcp-server-git"], "type": "local" },
     "github": {
       "enabled": true,
