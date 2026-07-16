@@ -43,7 +43,7 @@ the project root.
 | `instructions/` | Markdown instruction files loaded as system prompts |
 | `agents/` | Custom agents; reusable teams live under `agents/<team-id>/` |
 | `skills/` | Project-local OpenCode skills |
-| `harness/` | Schema and per-team component manifests for future plugin toggles |
+| `harness/` | Schema and per-team component manifests consumed by the harness team plugin |
 | `vendor/` | Git submodules pointing to external skill repos |
 | `plugins/` | Thin, auto-loaded OpenCode plugin entrypoints |
 | `packages/` | Bun workspace packages for shared/plugin TypeScript implementation |
@@ -58,6 +58,7 @@ The `developer` branch keeps plugin discovery separate from implementation:
 ```text
 plugins/                         # stable OpenCode auto-load entrypoints
 packages/plugin-kit/             # shared CLI, path, and execution policy
+packages/harness-teams/          # manifest validation and config mutation
 packages/native-memory/          # custom tools, recall hooks, and sidecar client
 crates/opencode-native-memory/   # Rust zvec sidecar and retrieval engine
 scripts/build-native-memory.ts   # packages the zvec runtime beside the binary
@@ -84,16 +85,32 @@ isolated sidecar so a native fault cannot terminate OpenCode.
 
 ### Native Project Memory
 
-`plugins/opencode-memory.ts` auto-loads five OpenCode custom tools without MCP:
-`native_memory_search`, `native_memory_store`, `native_memory_get`,
-`native_memory_forget`, and `native_memory_status`.
+`plugins/opencode-memory.ts` auto-loads native memory without MCP. Its custom
+tools cover search, store, get, list, update, batch delete, feedback, promotion,
+purge, optimize, doctor, status, and the deprecated `forget` alias. The plugin
+also registers `/memory` as the human management workflow.
 
-The plugin recalls relevant project memory before model execution and injects it
-as untrusted historical context. It also preserves durable candidates during
-compaction. The Rust sidecar combines multilingual E5 embeddings, zvec HNSW,
-full-text search, importance, and recency. Data is isolated by canonical Git
-worktree under `~/.local/share/opencode/native-memory`; downloaded models live
-under `~/.cache/opencode/native-memory/models`.
+Recall uses calibrated multilingual E5 and full-text ranks, kind-specific
+retention, feedback, MMR diversity, relevance abstention, and a model-relative
+context budget. Recalled records are injected as untrusted historical context.
+Code-linked memories carry Git/file hashes and are withheld when their files
+change.
+
+Memory has four scopes: `session`, `agent`, `project`, and `repository`.
+`session` is keyed to the root OpenCode session, so a parent and all of its task
+subagents share temporary context while unrelated sessions remain isolated.
+`agent` persists for one agent role, `project` stays private to the worktree,
+and reviewed memories can be promoted to Git-shareable
+`.opencode/memory/*.md` files as `repository` scope.
+
+Compaction stores only strict, bounded durable candidates rather than raw
+summaries. A private atomic state ledger adds TTLs, tombstones, provenance,
+retrieval feedback, and code anchors without changing the existing zvec schema.
+Data is isolated by canonical Git worktree under
+`~/.local/share/opencode/native-memory`; downloaded models live under
+`~/.cache/opencode/native-memory/models`. One plugin process supports many
+sessions and subagents; a second OpenCode process for the same worktree remains
+unsupported because the sidecar intentionally holds an exclusive writer lock.
 
 The first setup downloads the local embedding model:
 
@@ -177,7 +194,7 @@ Skills are auto-discovered (no config change needed).
 ### 2. Add project-specific instructions
 
 Drop `.md` files into `.opencode/instructions/` and register each path explicitly in
-`opencode.jsonc`. Explicit paths let a future plugin enable or disable one instruction
+`opencode.jsonc`. Explicit paths let the harness team plugin enable or disable one instruction
 without rebuilding a shared wildcard.
 
 ### 3. Add a language or domain harness team
@@ -200,7 +217,7 @@ can add its own guidance without a discovery collision.
 
 Run artifacts belong under `_workspace/harness/<team-id>/<run-id>/`. Add the team
 instruction to the consuming project's instruction configuration and compact harness
-index when applicable. The team manifest is declarative component inventory for a future
+index when applicable. The team manifest is declarative component inventory for the
 plugin that toggles exact agents, skills, MCPs, and instructions; it must not duplicate
 the lead's workflow prompt. See `harness/README.md`.
 

@@ -119,7 +119,7 @@ pub(crate) fn hash_hex(input: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{discover_project_root, MemoryConfig};
+    use super::{MemoryConfig, discover_project_root};
     use std::fs;
 
     #[test]

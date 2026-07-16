@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 
 use crate::config::hash_hex;
@@ -68,6 +68,8 @@ pub(crate) struct RetrievalRecord {
     pub created_at_ms: i64,
     #[serde(default)]
     pub events: Vec<FeedbackEvent>,
+    #[serde(default)]
+    pub event_memory_ids: HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -81,6 +83,8 @@ pub(crate) struct MemoryState {
     pub tombstones: HashMap<String, Tombstone>,
     #[serde(default)]
     pub retrievals: HashMap<String, RetrievalRecord>,
+    #[serde(default)]
+    pub pending_deletes: HashSet<String>,
 }
 
 impl Default for MemoryState {
@@ -91,6 +95,7 @@ impl Default for MemoryState {
             records: HashMap::new(),
             tombstones: HashMap::new(),
             retrievals: HashMap::new(),
+            pending_deletes: HashSet::new(),
         }
     }
 }
@@ -180,10 +185,9 @@ impl MemoryState {
 pub(crate) fn default_half_life_days(kind: MemoryKind) -> f32 {
     match kind {
         MemoryKind::Decision => 730.0,
-        MemoryKind::Preference => 365.0,
+        MemoryKind::Preference | MemoryKind::Gotcha => 365.0,
         MemoryKind::Fact => 180.0,
         MemoryKind::Pattern => 270.0,
-        MemoryKind::Gotcha => 365.0,
         MemoryKind::Summary => 14.0,
     }
 }
@@ -240,7 +244,7 @@ fn set_private_file_permissions(file: &File) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{default_expiry, memory_fingerprint, MemoryState};
+    use super::{MemoryState, default_expiry, memory_fingerprint};
     use crate::model::{MemoryKind, MemoryScope};
 
     #[test]

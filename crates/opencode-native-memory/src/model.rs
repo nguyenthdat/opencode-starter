@@ -198,6 +198,10 @@ const fn default_min_score() -> f32 {
 #[serde(deny_unknown_fields)]
 pub struct GetRequest {
     pub ids: Vec<String>,
+    #[serde(default)]
+    pub session_scope_key: Option<String>,
+    #[serde(default)]
+    pub agent_scope_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -215,6 +219,10 @@ pub struct ListRequest {
     pub offset: usize,
     #[serde(default = "default_list_limit")]
     pub limit: usize,
+    #[serde(default)]
+    pub session_scope_key: Option<String>,
+    #[serde(default)]
+    pub agent_scope_key: Option<String>,
 }
 
 const fn default_list_limit() -> usize {
@@ -247,6 +255,10 @@ pub struct UpdateRequest {
     pub clear_expiry: bool,
     #[serde(default)]
     pub code_paths: Option<Vec<String>>,
+    #[serde(default)]
+    pub session_scope_key: Option<String>,
+    #[serde(default)]
+    pub agent_scope_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -257,6 +269,10 @@ pub struct DeleteRequest {
     pub tombstone: bool,
     #[serde(default)]
     pub reason: DeleteReason,
+    #[serde(default)]
+    pub session_scope_key: Option<String>,
+    #[serde(default)]
+    pub agent_scope_key: Option<String>,
 }
 
 const fn default_true() -> bool {
@@ -267,6 +283,10 @@ const fn default_true() -> bool {
 #[serde(deny_unknown_fields)]
 pub struct ForgetRequest {
     pub ids: Vec<String>,
+    #[serde(default)]
+    pub session_scope_key: Option<String>,
+    #[serde(default)]
+    pub agent_scope_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -371,6 +391,8 @@ pub struct ListResponse {
 #[derive(Debug, Clone, Serialize)]
 pub struct UpdateResponse {
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_id: Option<String>,
     pub updated_at_ms: i64,
 }
 
@@ -401,6 +423,7 @@ pub struct SyncSharedResponse {
     pub imported: usize,
     pub removed: usize,
     pub rejected: usize,
+    pub rejected_sources: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -1,14 +1,14 @@
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use opencode_native_memory::{
     DeleteRequest, DoctorRequest, FeedbackRequest, ForgetRequest, GetRequest, ListRequest,
     MemoryConfig, MemoryEngine, PurgeRequest, SearchRequest, StoreRequest, SyncSharedRequest,
     UpdateRequest,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const MAX_REQUEST_BYTES: usize = 1_048_576;
 

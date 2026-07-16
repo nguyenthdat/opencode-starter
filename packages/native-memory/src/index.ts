@@ -4,13 +4,15 @@ import { createHash } from "node:crypto";
 import { existsSync, realpathSync } from "node:fs";
 import {
   mkdir,
+  lstat,
   readFile,
   readdir,
+  realpath as realpathAsync,
   rename,
   stat,
   writeFile,
 } from "node:fs/promises";
-import { relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import YAML from "yaml";
 
@@ -127,6 +129,13 @@ interface SharedMemoryRecord extends CuratedCandidate {
   source: string;
 }
 
+interface SharedSyncResponse {
+  imported: number;
+  removed: number;
+  rejected: number;
+  rejected_sources: string[];
+}
+
 export interface NativeMemoryPluginOptions {
   root: string;
   warmup?: boolean;
@@ -231,6 +240,8 @@ export class NativeMemoryClient {
       this.disposed = true;
       return;
     }
+    const force = setTimeout(() => stopProcessTree(child, "SIGKILL"), 1_000);
+    force.unref?.();
     try {
       await this.request("shutdown", {});
     } catch {
@@ -238,8 +249,6 @@ export class NativeMemoryClient {
     }
     this.disposed = true;
     child.stdin.end();
-    const force = setTimeout(() => stopProcessTree(child, "SIGKILL"), 1_000);
-    force.unref?.();
     try {
       await new Promise<void>((resolveExit) => {
         if (child.exitCode !== null) resolveExit();
@@ -382,6 +391,7 @@ export function createNativeMemoryPlugin(
       const chain: string[] = [];
       const seen = new Set<string>();
       let current = sessionID;
+      let complete = true;
       for (let depth = 0; depth < 32 && !seen.has(current); depth += 1) {
         seen.add(current);
         chain.push(current);
@@ -394,13 +404,15 @@ export function createNativeMemoryPlugin(
             });
             parent = response.data?.parentID;
           } catch {
-            parent = undefined;
+            complete = false;
+            break;
           }
           sessionParents.set(current, parent);
         }
         if (!parent) break;
         current = parent;
       }
+      if (!complete) return sessionID;
       const root = current;
       for (const id of chain) sessionRoots.set(id, root);
       return root;
@@ -415,6 +427,17 @@ export function createNativeMemoryPlugin(
       if (scope === "agent") return agent;
       return undefined;
     };
+
+    const managementScopeKeys = async (
+      sessionID: string,
+      agent: string,
+    ): Promise<{
+      session_scope_key: string;
+      agent_scope_key: string;
+    }> => ({
+      session_scope_key: await resolveSessionRoot(sessionID),
+      agent_scope_key: agent,
+    });
 
     const recordFeedback = async (
       pending: PendingRecall,
@@ -447,17 +470,20 @@ export function createNativeMemoryPlugin(
       sharedSync = (async () => {
         const loaded = await loadSharedMemories(worktree);
         if (!force && loaded.signature === sharedSignature) return;
-        await native.request("sync_shared", { records: loaded.records });
+        const response = await native.request<SharedSyncResponse>("sync_shared", {
+          records: loaded.records,
+        });
+        if (response.rejected > 0) {
+          throw new Error(
+            `Rejected shared memories: ${response.rejected_sources.join(", ")}`,
+          );
+        }
         sharedSignature = loaded.signature;
         recallCache.clear();
       })().finally(() => {
         sharedSync = undefined;
       });
-      try {
-        await sharedSync;
-      } catch (error) {
-        warnOnce(error);
-      }
+      await sharedSync;
     };
 
     if (options.warmup !== false) {
@@ -599,7 +625,11 @@ Never modify repository-scoped memory through native_memory_update; edit its .op
         if (!input.sessionID) return;
         const latest = latestQuery.get(input.sessionID);
         if (!latest) return;
-        await syncSharedMemories();
+        try {
+          await syncSharedMemories();
+        } catch (error) {
+          warnOnce(error);
+        }
         const rootSessionID = await resolveSessionRoot(input.sessionID);
         const agent =
           latest.agent ?? sessionAgents.get(input.sessionID) ?? "unknown";
@@ -825,9 +855,13 @@ Never modify repository-scoped memory through native_memory_update; edit its .op
               .describe("Memory IDs to fetch."),
           },
           async execute(args, context) {
+            const keys = await managementScopeKeys(
+              context.sessionID,
+              context.agent,
+            );
             const response = await native.request<MemoryRecord[]>(
               "get",
-              args,
+              { ...args, ...keys },
               context.abort,
             );
             return result("Native memories", response, {
@@ -854,9 +888,13 @@ Never modify repository-scoped memory through native_memory_update; edit its .op
           },
           async execute(args, context) {
             await syncSharedMemories();
+            const keys = await managementScopeKeys(
+              context.sessionID,
+              context.agent,
+            );
             const response = await native.request<ListResponse>(
               "list",
-              args,
+              { ...args, ...keys },
               context.abort,
             );
             return result("Native memory list", response, {
@@ -893,9 +931,13 @@ Never modify repository-scoped memory through native_memory_update; edit its .op
               .optional(),
           },
           async execute(args, context) {
+            const keys = await managementScopeKeys(
+              context.sessionID,
+              context.agent,
+            );
             const existing = await native.request<MemoryRecord[]>(
               "get",
-              { ids: [args.id] },
+              { ids: [args.id], ...keys },
               context.abort,
             );
             if (existing[0]?.scope === "repository") {
@@ -908,7 +950,7 @@ Never modify repository-scoped memory through native_memory_update; edit its .op
               : undefined;
             const response = await native.request<Record<string, unknown>>(
               "update",
-              { ...args, scope_key: key },
+              { ...args, scope_key: key, ...keys },
               context.abort,
             );
             recallCache.clear();
@@ -935,9 +977,13 @@ Never modify repository-scoped memory through native_memory_update; edit its .op
               always: [],
               metadata: { operation: "delete", ...args },
             });
+            const keys = await managementScopeKeys(
+              context.sessionID,
+              context.agent,
+            );
             const response = await native.request<Record<string, unknown>>(
               "delete",
-              args,
+              { ...args, ...keys },
               context.abort,
             );
             recallCache.clear();
@@ -961,9 +1007,13 @@ Never modify repository-scoped memory through native_memory_update; edit its .op
               always: [],
               metadata: { operation: "delete", ids: args.ids },
             });
+            const keys = await managementScopeKeys(
+              context.sessionID,
+              context.agent,
+            );
             const response = await native.request<Record<string, unknown>>(
               "forget",
-              args,
+              { ...args, ...keys },
               context.abort,
             );
             recallCache.clear();
@@ -1013,9 +1063,13 @@ Never modify repository-scoped memory through native_memory_update; edit its .op
             id: tool.schema.string().regex(/^mem_[0-9a-f]{32}$/),
           },
           async execute(args, context) {
+            const keys = await managementScopeKeys(
+              context.sessionID,
+              context.agent,
+            );
             const memories = await native.request<MemoryRecord[]>(
               "get",
-              { ids: [args.id] },
+              { ids: [args.id], ...keys },
               context.abort,
             );
             const memory = memories[0];
@@ -1250,8 +1304,17 @@ async function loadSharedMemories(
   worktree: string,
 ): Promise<{ records: SharedMemoryRecord[]; signature: string }> {
   const directory = resolve(worktree, SHARED_MEMORY_RELATIVE_DIR);
+  const canonicalRoot = await realpathAsync(worktree);
   let entries;
   try {
+    const directoryInfo = await lstat(directory);
+    if (directoryInfo.isSymbolicLink() || !directoryInfo.isDirectory()) {
+      throw new Error("Shared memory directory must be a real directory, not a symlink");
+    }
+    const canonicalDirectory = await realpathAsync(directory);
+    if (!isPathWithin(canonicalRoot, canonicalDirectory)) {
+      throw new Error("Shared memory directory escaped the project worktree");
+    }
     entries = await readdir(directory, { withFileTypes: true });
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") {
@@ -1270,12 +1333,20 @@ async function loadSharedMemories(
   const records: SharedMemoryRecord[] = [];
   for (const name of names) {
     const path = resolve(directory, name);
-    const info = await stat(path);
+    const linkInfo = await lstat(path);
+    if (linkInfo.isSymbolicLink() || !linkInfo.isFile()) {
+      throw new Error(`Shared memory must be a regular file: ${name}`);
+    }
+    const canonicalPath = await realpathAsync(path);
+    if (!isPathWithin(canonicalRoot, canonicalPath)) {
+      throw new Error(`Shared memory file escaped the project worktree: ${name}`);
+    }
+    const info = await stat(canonicalPath);
     if (info.size > MAX_SHARED_FILE_BYTES) {
       throw new Error(`Shared memory file exceeds ${MAX_SHARED_FILE_BYTES} bytes: ${name}`);
     }
     const source = `${SHARED_MEMORY_RELATIVE_DIR}/${name}`;
-    const content = await readFile(path, "utf8");
+    const content = await readFile(canonicalPath, "utf8");
     hash.update(source).update("\0").update(content).update("\0");
     records.push(parseSharedMemory(source, content));
   }
@@ -1337,10 +1408,25 @@ async function writeSharedMemory(
   worktree: string,
   memory: MemoryRecord,
 ): Promise<string> {
-  const directory = resolve(worktree, SHARED_MEMORY_RELATIVE_DIR);
-  await mkdir(directory, { recursive: true, mode: 0o700 });
+  const canonicalRoot = await realpathAsync(worktree);
+  const opencodeDirectory = resolve(canonicalRoot, ".opencode");
+  await ensureRealDirectory(opencodeDirectory);
+  const directory = resolve(opencodeDirectory, "memory");
+  await ensureRealDirectory(directory);
+  const canonicalDirectory = await realpathAsync(directory);
+  if (!isPathWithin(canonicalRoot, canonicalDirectory)) {
+    throw new Error("Shared memory directory escaped the project worktree");
+  }
   const destination = resolve(directory, `${memory.id}.md`);
-  const relativePath = relative(worktree, destination).replaceAll("\\", "/");
+  try {
+    const destinationInfo = await lstat(destination);
+    if (destinationInfo.isSymbolicLink() || !destinationInfo.isFile()) {
+      throw new Error("Shared memory destination must be a regular file");
+    }
+  } catch (error) {
+    if (!isNodeError(error) || error.code !== "ENOENT") throw error;
+  }
+  const relativePath = relative(canonicalRoot, destination).replaceAll("\\", "/");
   if (!relativePath.startsWith(`${SHARED_MEMORY_RELATIVE_DIR}/`)) {
     throw new Error("Shared memory destination escaped the project directory");
   }
@@ -1359,6 +1445,23 @@ async function writeSharedMemory(
   await writeFile(temporary, output, { encoding: "utf8", flag: "wx", mode: 0o600 });
   await rename(temporary, destination);
   return relativePath;
+}
+
+async function ensureRealDirectory(path: string): Promise<void> {
+  try {
+    const info = await lstat(path);
+    if (info.isSymbolicLink() || !info.isDirectory()) {
+      throw new Error(`Expected a real directory, not a symlink: ${path}`);
+    }
+  } catch (error) {
+    if (!isNodeError(error) || error.code !== "ENOENT") throw error;
+    await mkdir(path, { recursive: false, mode: 0o700 });
+  }
+}
+
+function isPathWithin(root: string, candidate: string): boolean {
+  const path = relative(root, candidate);
+  return path === "" || (!path.startsWith("..") && !isAbsolute(path));
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

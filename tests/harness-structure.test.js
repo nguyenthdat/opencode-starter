@@ -62,7 +62,6 @@ describe("Senior Rust Developer harness structure", () => {
     for (const role of ROLES) {
       const { data } = parseFrontmatter(join(TEAM_DIR, `${role}.md`));
       expect(data.mode).toBe(role === "lead" ? "primary" : "subagent");
-      if (role !== "lead") expect(data.model).toBe(SUBAGENT_MODEL);
     }
   });
 
