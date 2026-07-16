@@ -24,7 +24,7 @@ A harness is not a static pile of prompts. It is a maintained system that answer
 2. **Separate role from procedure.** Agents define expert identity, scope, constraints, and I/O protocol. Skills define the repeatable workflow, reference material, scripts, and examples.
 3. **The primary agent owns orchestration.** opencode subagents return results to the caller; do not assume direct subagent-to-subagent messaging. Share context through task prompts and `_workspace/` artifacts.
 4. **Use parallel tasks when they add value.** Launch independent `task` subagents in the same turn when research, implementation, QA, or content work can happen concurrently. Sequence tasks when outputs have real dependencies.
-5. **Per-team instructions + lean base index.** Each harness team gets its own instruction file at `.opencode/instructions/<team>.md`, registered with an explicit path in `opencode.jsonc` `instructions` (keeping `AGENTS.md` first). `AGENTS.md` stays a lean base: project identity, source-of-truth statement, global rules, and a compact harness index table — never full harness sections. Keep detailed workflow in the orchestrator skill.
+5. **Per-team instructions + lean base index.** Each harness team gets its own instruction file at `.opencode/instructions/<team>.md`, registered with an explicit path in `.opencode/opencode.jsonc` `instructions` (keeping `AGENTS.md` first). `AGENTS.md` stays a lean base: project identity, source-of-truth statement, global rules, and a compact harness index table — never full harness sections. Keep detailed workflow in the orchestrator skill.
 6. **Treat the harness as evolving infrastructure.** After each meaningful run, fold feedback into the relevant agent, skill, orchestrator, test case, or project pointer.
 
 ## Workflow
@@ -36,7 +36,7 @@ When this skill triggers, inspect the existing harness before designing anything
 1. Read likely harness locations:
    - `.opencode/agent/` and `.opencode/agents/`
    - `.opencode/skill/`, `.opencode/skills/`, and any configured `skills.paths` such as `skills/`
-   - `.opencode/opencode.jsonc` or `opencode.json(c)`
+   - `.opencode/opencode.jsonc`
    - `AGENTS.md`, `.opencode/instructions/`, and `.opencode/rules/`
    - `_workspace/` audit or run artifacts if present
 2. Choose the execution path:
@@ -173,7 +173,7 @@ Create each skill at a valid skill path:
 
 ```text
 .opencode/skills/{skill-name}/SKILL.md
-# or, if configured in opencode.jsonc:
+# or, if configured in .opencode/opencode.jsonc:
 skills/{skill-name}/SKILL.md
 ```
 
@@ -264,7 +264,7 @@ Include realistic failure behavior in the orchestrator:
 Standard procedure when a harness team is created or updated:
 
 1. **Create or update the team instruction file** at `.opencode/instructions/<team>.md` — one team per file, covering (as applicable): Goal, Agents, Model routing, Completion gate, Skills, Trigger, and Change history.
-2. **Register it in `opencode.jsonc`** `"instructions"` with an explicit path, keeping `"AGENTS.md"` first:
+2. **Register it in `.opencode/opencode.jsonc`** `"instructions"` with an explicit path, keeping `"AGENTS.md"` first:
 
    ```jsonc
    "instructions": [
@@ -316,7 +316,7 @@ The orchestrator must handle future work, not only the first run.
 - All skill folders contain `SKILL.md` with `name` and `description` frontmatter.
 - `name` values match folder names and use lowercase hyphen-separated identifiers.
 - No stale references to old paths, old skill names, or unsupported tools remain.
-- `opencode.jsonc` remains valid if changed.
+- `.opencode/opencode.jsonc` remains valid if changed.
 
 #### 6-2. Execution-mode verification
 
@@ -400,7 +400,7 @@ Suggest harness updates when:
 
 Use this when the user asks for harness audit, status, cleanup, synchronization, or repair.
 
-1. **Audit state:** compare agent files, skill folders, orchestrator references, per-team instruction files, the `AGENTS.md` index, and config paths (including the `opencode.jsonc` `instructions` array).
+1. **Audit state:** compare agent files, skill folders, orchestrator references, per-team instruction files, the `AGENTS.md` index, and config paths (including the `.opencode/opencode.jsonc` `instructions` array).
 2. **Report drift:** list missing, stale, duplicate, and orphaned components.
 3. **Apply changes incrementally:** add/update/delete one component at a time.
 4. **Update change history:** record date, target, change, and reason.
