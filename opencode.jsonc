@@ -55,6 +55,9 @@
   "plugin": ["@ex-machina/opencode-anthropic-auth"],
   "lsp": true,
   "mcp": {
+    "docs.rs": { "type": "local", "command": ["bunx", "@nuskey8/docs-rs-mcp@latest", "-y"] },
+    "crates.io": { "type": "local", "command": ["cratesio-mcp"] },
+    "ferroscope": { "type": "local", "command": ["ferroscope"] },
     "codebase-memory": { "enabled": true, "type": "local", "command": ["codebase-memory-mcp"] },
     "git": { "enabled": true, "command": ["uvx", "mcp-server-git"], "type": "local" },
     "github": {

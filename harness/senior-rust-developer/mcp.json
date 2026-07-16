@@ -1,5 +1,0 @@
-{
-  "docs.rs": { "type": "local", "command": ["bunx", "@nuskey8/docs-rs-mcp@latest", "-y"] },
-  "crates.io": { "type": "local", "command": ["cratesio-mcp"] },
-  "ferroscope": { "type": "local", "command": ["ferroscope"] }
-}
