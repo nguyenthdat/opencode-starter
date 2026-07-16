@@ -15,7 +15,7 @@ import CrawlbergPlugin from "../plugins/crawlberg.js";
 import HtmlToMarkdownPlugin from "../plugins/html-to-markdown.js";
 import TreeSitterLanguagePackPlugin from "../plugins/tree-sitter-language-pack.js";
 import XbergPlugin from "../plugins/xberg.js";
-import { runCli } from "../scripts/opencode-plugin-utils.js";
+import { runCli } from "@opencode-config/plugin-kit";
 
 let testRoot;
 let workspace;

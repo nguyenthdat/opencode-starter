@@ -1,6 +1,6 @@
 # OpenCode Custom Plugins
 
-This directory contains five auto-loaded OpenCode plugins. Four expose bounded wrappers around trusted local CLIs; `dynamic-skills` discovers and loads skills without placing every skill body in the model context.
+This directory contains stable, auto-loaded OpenCode entrypoints. Four expose bounded wrappers around trusted local CLIs, `dynamic-skills` discovers skills on demand, and `native-diagnostics` verifies the Bun-to-Rust FFI path.
 
 Restart OpenCode after changing a plugin, dependency, or plugin configuration because plugins are loaded once at startup.
 
@@ -13,8 +13,9 @@ Restart OpenCode after changing a plugin, dependency, or plugin configuration be
 | `tree-sitter-language-pack.js` | `tspack_parse`, `tspack_process`, `tspack_info`                                      | `ts-pack`          | 5 minutes        |
 | `xberg.js`                     | `xberg_extract`, `xberg_detect`, `xberg_formats`                                     | `xberg`            | 10 minutes       |
 | `dynamic-skills.js`            | `skills_list`, `skills_find`, `skills_load`, `skills_refresh`, `skills_doctor`       | None               | In-process       |
+| `native-diagnostics.ts`        | `native_diagnostics`                                                                 | Rust cdylib         | In-process       |
 
-OpenCode auto-discovers JavaScript files in `plugins/`; no `plugin` entry is required in `opencode.jsonc` for this layout.
+OpenCode auto-discovers JavaScript and TypeScript files in `plugins/`; no `plugin` entry is required in `opencode.jsonc` for this layout. Keep these entrypoints thin. Reusable TypeScript implementation belongs in `packages/`.
 
 ## Installation
 
@@ -37,7 +38,7 @@ The wrappers also return package-specific `bunx` and `uvx` guidance when a binar
 
 ## Shared CLI Contract
 
-The four CLI plugins use `scripts/opencode-plugin-utils.js` for consistent execution:
+The four CLI plugins use the `@opencode-config/plugin-kit` workspace package for consistent execution:
 
 - Commands are spawned with argument arrays and no shell interpolation.
 - Relative paths resolve against `context.directory`, then canonicalize through `realpath`.
@@ -137,6 +138,26 @@ skills_doctor  { debug? }
 
 Discovery reads at most 64 KiB for frontmatter. Full content is read only by `skills_load` and remains subject to `maxSkillFileSize`.
 
+## Rust FFI
+
+The native diagnostic tool is a deliberately small reference implementation for future Rust-backed plugins:
+
+```text
+plugins/native-diagnostics.ts
+  -> packages/native-diagnostics/src/index.ts
+  -> target/{debug,release}/libopencode_native_diagnostics.{dylib,so,dll}
+  -> crates/opencode-native-diagnostics/src/lib.rs
+```
+
+Build and test it with:
+
+```bash
+bun run native:build
+bun run test:native
+```
+
+The library is loaded lazily, validates an explicit ABI version, accepts only bounded byte input, and never transfers allocator ownership across FFI. Use a subprocess instead of FFI when native code is untrusted or crash isolation matters.
+
 ## Testing
 
 Run all project tests:
@@ -150,6 +171,7 @@ Run focused suites:
 ```bash
 bun test tests/custom-plugins.test.js
 bun test tests/dynamic-skills.test.js
+bun run test:native
 bun run vendor/xberg-plugins/scripts/validate-opencode.mjs
 ```
 
@@ -160,7 +182,7 @@ The wrapper suite uses fake executables to verify argv construction, stderr sepa
 ```text
 OpenCode tool call
   -> plugin-specific schema and argv construction
-  -> shared CLI runner / canonical file approval
+  -> @opencode-config/plugin-kit / canonical file approval
   -> trusted local binary
   -> bounded stdout result + diagnostic metadata
 

@@ -6,7 +6,7 @@ import {
   requireExactlyOne,
   resolveReadableFile,
   runCli,
-} from "../src/utils/opencode-plugin-utils.js";
+} from "@opencode-config/plugin-kit";
 
 const schema = tool.schema;
 

@@ -1,0 +1,11 @@
+{
+  "name": "@opencode-config/plugin-kit",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "1.18.1"
+  }
+}

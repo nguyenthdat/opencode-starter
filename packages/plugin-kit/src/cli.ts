@@ -5,7 +5,45 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 const DEFAULT_MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 const ERROR_DETAIL_BYTES = 4096;
 
-function isWithinPath(target, root) {
+export interface ExternalDirectoryRequest {
+  permission: string;
+  patterns: string[];
+  always: string[];
+  metadata: Record<string, unknown>;
+}
+
+export interface CliContext {
+  directory?: string;
+  worktree?: string;
+  abort?: AbortSignal;
+  ask?: (request: ExternalDirectoryRequest) => Promise<void>;
+}
+
+export interface CliResult {
+  title: string;
+  output: string;
+  metadata: {
+    command: string;
+    subcommand: string | null;
+    exitCode: number | null;
+    signal: NodeJS.Signals | null;
+    outputBytes: number;
+    stderr?: string;
+  };
+}
+
+export interface RunCliOptions {
+  command: string;
+  args: string[];
+  context?: CliContext;
+  stdin?: string | Uint8Array;
+  timeoutMs?: number;
+  maxOutputBytes?: number;
+  installHint?: string;
+  title?: string;
+}
+
+function isWithinPath(target: string, root: string): boolean {
   const rel = relative(root, target);
   return (
     rel === "" ||
@@ -13,13 +51,22 @@ function isWithinPath(target, root) {
   );
 }
 
-function boundedText(chunks, maxBytes = ERROR_DETAIL_BYTES) {
-  const text = Buffer.concat(chunks).toString("utf8").trim();
-  if (Buffer.byteLength(text) <= maxBytes) return text;
-  return `${Buffer.from(text).subarray(0, maxBytes).toString("utf8")}\n...[truncated]`;
+function boundedText(
+  chunks: Buffer[],
+  maxBytes = ERROR_DETAIL_BYTES,
+  trim = false,
+): string {
+  const buffer = Buffer.concat(chunks);
+  const truncated = buffer.byteLength > maxBytes;
+  let text = buffer.subarray(0, maxBytes).toString("utf8");
+  if (truncated) text += "\n...[truncated]";
+  return trim ? text.trim() : text;
 }
 
-function stopProcessTree(child, signal) {
+function stopProcessTree(
+  child: ReturnType<typeof spawn>,
+  signal: NodeJS.Signals,
+): void {
   if (!child.pid || child.exitCode !== null) return;
   if (process.platform !== "win32") {
     try {
@@ -36,38 +83,51 @@ function stopProcessTree(child, signal) {
   }
 }
 
-export function hasValue(value) {
+export function hasValue(value: unknown): boolean {
   return value !== undefined && value !== null && value !== "";
 }
 
-export function pushOption(args, name, value) {
+export function pushOption(
+  args: string[],
+  name: string,
+  value: unknown,
+): void {
   if (hasValue(value)) args.push(name, String(value));
 }
 
-export function pushFlag(args, name, enabled) {
+export function pushFlag(
+  args: string[],
+  name: string,
+  enabled: unknown,
+): void {
   if (enabled === true) args.push(name);
 }
 
-export function validateJsonObject(value, name, maxBytes = 65_536) {
+export function validateJsonObject(
+  value: string | undefined,
+  name: string,
+  maxBytes = 65_536,
+): Record<string, unknown> | undefined {
   if (!hasValue(value)) return undefined;
-  if (Buffer.byteLength(value, "utf8") > maxBytes) {
+  if (Buffer.byteLength(value!, "utf8") > maxBytes) {
     throw new Error(`${name} exceeds the ${maxBytes}-byte limit`);
   }
 
-  let parsed;
+  let parsed: unknown;
   try {
-    parsed = JSON.parse(value);
+    parsed = JSON.parse(value!);
   } catch (error) {
-    throw new Error(`${name} must be valid JSON: ${error.message}`);
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${name} must be valid JSON: ${detail}`);
   }
   if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
     throw new Error(`${name} must be a JSON object`);
   }
-  return parsed;
+  return parsed as Record<string, unknown>;
 }
 
-export function assertHttpUrl(value, name = "url") {
-  let url;
+export function assertHttpUrl(value: string, name = "url"): string {
+  let url: URL;
   try {
     url = new URL(value);
   } catch {
@@ -79,32 +139,40 @@ export function assertHttpUrl(value, name = "url") {
   return url.toString();
 }
 
-export function requireExactlyOne(args, names) {
+export function requireExactlyOne(
+  args: Record<string, unknown>,
+  names: readonly string[],
+): string {
   const supplied = names.filter((name) => hasValue(args[name]));
   if (supplied.length !== 1) {
     throw new Error(
       `Provide exactly one of: ${names.map((name) => `\`${name}\``).join(", ")}`,
     );
   }
-  return supplied[0];
+  return supplied[0]!;
 }
 
-export async function resolveReadableFile(inputPath, context) {
+export async function resolveReadableFile(
+  inputPath: string,
+  context?: CliContext,
+): Promise<string> {
   const directory = context?.directory ?? context?.worktree ?? process.cwd();
   const requested = resolve(directory, inputPath);
 
-  let target;
+  let target: string;
   try {
     target = await realpath(requested);
   } catch (error) {
-    throw new Error(`Cannot resolve file ${requested}: ${error.message}`);
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Cannot resolve file ${requested}: ${detail}`);
   }
 
   const info = await stat(target);
   if (!info.isFile()) throw new Error(`Expected a regular file: ${target}`);
 
-  const roots = [];
-  for (const root of [context?.directory, context?.worktree].filter(Boolean)) {
+  const roots: string[] = [];
+  for (const root of [context?.directory, context?.worktree]) {
+    if (!root) continue;
     try {
       roots.push(await realpath(root));
     } catch {
@@ -136,45 +204,46 @@ export function runCli({
   maxOutputBytes = DEFAULT_MAX_OUTPUT_BYTES,
   installHint,
   title = `${command} ${args[0] ?? ""}`.trim(),
-}) {
+}: RunCliOptions): Promise<CliResult> {
   const directory = context?.directory ?? context?.worktree ?? process.cwd();
 
   return new Promise((resolveResult, rejectResult) => {
-    let child;
+    let child: ReturnType<typeof spawn>;
     try {
       child = spawn(command, args, {
         cwd: directory,
         env: process.env,
         detached: process.platform !== "win32",
-        stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (error) {
       rejectResult(error);
       return;
     }
 
-    const stdout = [];
-    const stderr = [];
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
     let outputBytes = 0;
-    let terminationReason = null;
-    let stdinError = null;
+    let terminationReason: string | undefined;
+    let stdinError: Error | undefined;
     let settled = false;
-    let forceTimer = null;
+    let forceTimer: ReturnType<typeof setTimeout> | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
-    const cleanup = () => {
-      clearTimeout(timeout);
+    const cleanup = (): void => {
+      if (timeout) clearTimeout(timeout);
       if (forceTimer) clearTimeout(forceTimer);
       context?.abort?.removeEventListener("abort", onAbort);
     };
 
-    const rejectOnce = (error) => {
+    const rejectOnce = (error: unknown): void => {
       if (settled) return;
       settled = true;
       cleanup();
       rejectResult(error);
     };
 
-    const terminate = (reason) => {
+    const terminate = (reason: string): void => {
       if (terminationReason || settled) return;
       terminationReason = reason;
       stopProcessTree(child, "SIGTERM");
@@ -182,7 +251,7 @@ export function runCli({
       forceTimer.unref?.();
     };
 
-    const collect = (bucket) => (chunk) => {
+    const collect = (bucket: Buffer[]) => (chunk: Buffer): void => {
       outputBytes += chunk.length;
       if (outputBytes > maxOutputBytes) {
         terminate(`exceeded the ${maxOutputBytes}-byte output limit`);
@@ -191,35 +260,33 @@ export function runCli({
       bucket.push(chunk);
     };
 
-    const onAbort = () => terminate("was cancelled");
+    const onAbort = (): void => terminate("was cancelled");
     if (context?.abort?.aborted) onAbort();
     else context?.abort?.addEventListener("abort", onAbort, { once: true });
 
-    const timeout = setTimeout(
+    timeout = setTimeout(
       () => terminate(`timed out after ${timeoutMs} ms`),
       timeoutMs,
     );
     timeout.unref?.();
 
-    child.stdout.on("data", collect(stdout));
-    child.stderr.on("data", collect(stderr));
-    child.on("error", (error) => {
+    child.stdout?.on("data", collect(stdout));
+    child.stderr?.on("data", collect(stderr));
+    child.on("error", (error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") {
-        rejectOnce(
-          new Error(installHint || `${command} was not found on PATH`),
-        );
+        rejectOnce(new Error(installHint || `${command} was not found on PATH`));
         return;
       }
       rejectOnce(error);
     });
     child.on("close", (exitCode, signal) => {
       if (settled) return;
-      cleanup();
 
       const stdoutText = boundedText(stdout, maxOutputBytes);
       const stderrText = boundedText(
         stderr,
         Math.min(maxOutputBytes, ERROR_DETAIL_BYTES),
+        true,
       );
 
       if (terminationReason) {
@@ -235,7 +302,7 @@ export function runCli({
       if (exitCode !== 0) {
         const detail =
           stderrText ||
-          stdoutText ||
+          stdoutText.trim() ||
           `terminated by ${signal || "unknown signal"}`;
         rejectOnce(
           new Error(`${title} failed with exit code ${exitCode}: ${detail}`),
@@ -244,7 +311,8 @@ export function runCli({
       }
 
       settled = true;
-      const metadata = {
+      cleanup();
+      const metadata: CliResult["metadata"] = {
         command,
         subcommand: args[0] ?? null,
         exitCode,
@@ -255,11 +323,9 @@ export function runCli({
       resolveResult({ title, output: stdoutText, metadata });
     });
 
-    if (stdin !== undefined) {
-      child.stdin.on("error", (error) => {
-        stdinError = error;
-      });
-      child.stdin.end(stdin);
-    }
+    child.stdin?.on("error", (error: Error) => {
+      stdinError = error;
+    });
+    child.stdin?.end(stdin);
   });
 }

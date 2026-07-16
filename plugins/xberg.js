@@ -4,7 +4,7 @@ import {
   resolveReadableFile,
   runCli,
   validateJsonObject,
-} from "../src/utils/opencode-plugin-utils.js";
+} from "@opencode-config/plugin-kit";
 
 const schema = tool.schema;
 

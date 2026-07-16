@@ -44,8 +44,39 @@ the project root.
 | `agents/` | Custom agent definitions |
 | `skills/` | Project-local OpenCode skills |
 | `vendor/` | Git submodules pointing to external skill repos |
-| `plugins/` | Project-level OpenCode plugins |
-| `tools/` | Tool configuration overrides |
+| `plugins/` | Thin, auto-loaded OpenCode plugin entrypoints |
+| `packages/` | Bun workspace packages for shared/plugin TypeScript implementation |
+| `crates/` | Cargo workspace crates used by native plugins |
+| `Cargo.toml` | Rust workspace and shared lint policy |
+| `tsconfig.json` | Strict TypeScript checks for workspace packages and plugins |
+
+### Plugin Workspace
+
+The `developer` branch keeps plugin discovery separate from implementation:
+
+```text
+plugins/                         # stable OpenCode auto-load entrypoints
+packages/plugin-kit/             # shared CLI, path, and execution policy
+packages/native-diagnostics/     # Bun plugin implementation and FFI loader
+crates/opencode-native-diagnostics/ # Rust cdylib with a versioned C ABI
+tests/                           # Bun unit and integration tests
+```
+
+Use Bun as the only JavaScript package manager. `bun.lock` is authoritative;
+`package-lock.json` is intentionally not maintained.
+
+```bash
+bun install --frozen-lockfile
+bun run typecheck
+bun test
+bun run test:native
+bun run check
+```
+
+New plugins should keep only a small entrypoint in `plugins/` and place reusable
+or multi-file code in a named package under `packages/`. Native code belongs in
+a dedicated crate under `crates/`; expose a narrow, versioned C ABI and load it
+lazily so OpenCode can still start before native artifacts are built.
 
 ### Instructions
 
