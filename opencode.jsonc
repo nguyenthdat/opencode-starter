@@ -63,7 +63,12 @@
     "build": { "permission": { "doom_loop": "deny", "task": { "*": "allow", "build": "deny" } } },
     "general": { "permission": { "task": "deny", "doom_loop": "deny" } },
     "title": { "model": "opencode/deepseek-v4-flash-free", "variant": "none" },
-    "compaction": { "temperature": 0, "prompt": "{file:./prompts/compaction.txt}" },
+    "compaction": {
+      "model": "anthropic/claude-sonnet-5",
+      "variant": "max",
+      "temperature": 0,
+      "prompt": "{file:./prompts/compaction.txt}",
+    },
     "summary": { "model": "opencode/deepseek-v4-flash-free", "variant": "none" },
   },
   "compaction": { "auto": true, "prune": true, "reserved": 20000 },
