@@ -6,6 +6,14 @@
   "provider": {
     "openai": { "options": { "headerTimeout": 99999, "timeout": 999999, "chunkTimeout": 99999 } },
   },
+  "instructions": [
+    "~/.config/opencode/instructions/*",
+    "~/.config/opencode/AGENTS.md",
+    "~/.opencode/instructions/*",
+    "~/.opencode/AGENTS.md",
+    ".opencode/instructions/*",
+    ".opencode/AGENTS.md",
+  ],
   "permission": {
     "edit": "allow",
     "bash": "allow",
