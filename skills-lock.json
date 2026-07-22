@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "harness": {
+      "source": "nguyenthdat/opencode-harness",
+      "sourceType": "github",
+      "skillPath": "skills/harness/SKILL.md",
+      "computedHash": "e01eb0c2f0813b6a2f53eb4af8adc0bb211fb936296b8e941a2bbf9a18625c34"
+    }
+  }
+}

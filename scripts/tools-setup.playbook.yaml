@@ -1,0 +1,449 @@
+---
+- name: Bootstrap an OpenCode development workstation
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    workstation_home: "{{ lookup('ansible.builtin.env', 'HOME') }}"
+    local_bin_dir: "{{ workstation_home }}/.local/bin"
+    bootstrap_cache_dir: "{{ workstation_home }}/.cache/opencode-bootstrap"
+    bun_install_dir: "{{ workstation_home }}/.bun"
+    cargo_home: "{{ workstation_home }}/.cargo"
+    bun_version: "1.3.14"
+    uv_version: "0.11.29"
+    yq_version: "4.53.3"
+    yq_release_base_url: https://github.com/mikefarah/yq/releases/download
+    opencode_version: "1.18.3"
+    codebase_memory_version: "0.9.0"
+    ansible_lint_version: "26.6.0"
+    cargo_tools:
+      - name: just
+        version: "1.56.0"
+        executable: just
+      - name: cratesio-mcp
+        version: "0.3.0"
+        executable: cratesio-mcp
+      - name: ferroscope
+        version: "1.1.0"
+        executable: ferroscope
+    macos_packages:
+      - aria2
+      - bat
+      - cmake
+      - coreutils
+      - curl
+      - fd
+      - findutils
+      - fzf
+      - gawk
+      - gh
+      - git
+      - gnu-sed
+      - jq
+      - openssl@3
+      - parallel
+      - pkg-config
+      - ripgrep
+      - shellcheck
+      - tree
+      - unzip
+    debian_packages:
+      - aria2
+      - bat
+      - build-essential
+      - ca-certificates
+      - clang
+      - cmake
+      - curl
+      - fd-find
+      - fzf
+      - gawk
+      - gdb
+      - gh
+      - git
+      - jq
+      - libssl-dev
+      - lldb
+      - parallel
+      - pkg-config
+      - ripgrep
+      - shellcheck
+      - tree
+      - unzip
+      - zlib1g-dev
+    redhat_packages:
+      - ShellCheck
+      - aria2
+      - bat
+      - ca-certificates
+      - clang
+      - cmake
+      - curl
+      - fd-find
+      - fzf
+      - gawk
+      - gcc
+      - gcc-c++
+      - gdb
+      - gh
+      - git
+      - jq
+      - lldb
+      - make
+      - openssl-devel
+      - parallel
+      - pkgconf-pkg-config
+      - ripgrep
+      - tree
+      - unzip
+      - zlib-devel
+    supported_architectures:
+      Darwin:
+        - arm64
+        - x86_64
+      Linux:
+        - aarch64
+        - x86_64
+    yq_releases:
+      Darwin:
+        arm64:
+          asset: yq_darwin_arm64
+          sha256: 877de31753a4dd2401aa048937aa9a7fc4d5f6ce858cf31508c5802954297213
+        x86_64:
+          asset: yq_darwin_amd64
+          sha256: b4ba1ecce3c47f00803f4f964de38394326c7a32eb6540616e04fb2935a0f08d
+      Linux:
+        aarch64:
+          asset: yq_linux_arm64
+          sha256: 578648e463a11c1b6db6010cbf41eafed6bee79466fcffa1bb446672cf7945ea
+        x86_64:
+          asset: yq_linux_amd64
+          sha256: fa52a4e758c63d38299163fbdd1edfb4c4963247918bf9c1c5d31d84789eded4
+    shell_profiles:
+      bash: "{{ workstation_home }}/.bashrc"
+      fish: "{{ workstation_home }}/.config/fish/conf.d/opencode-toolchain.fish"
+      zsh: "{{ workstation_home }}/.zshrc"
+    shell_name: "{{ lookup('ansible.builtin.env', 'SHELL') | basename }}"
+    tool_path: "{{ local_bin_dir }}:{{ cargo_home }}/bin:{{ bun_install_dir }}/bin:/opt/homebrew/bin:/usr/local/bin:{{ lookup('ansible.builtin.env', 'PATH') }}"
+
+  environment:
+    BUN_INSTALL: "{{ bun_install_dir }}"
+    CARGO_HOME: "{{ cargo_home }}"
+    PATH: "{{ tool_path }}"
+
+  pre_tasks:
+    - name: Validate the operating system and architecture
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.system in supported_architectures
+          - ansible_facts.architecture in supported_architectures[ansible_facts.system]
+          - >-
+            ansible_facts.system == 'Darwin' or
+            ansible_facts.os_family in ['Debian', 'RedHat']
+          - shell_name in shell_profiles
+        fail_msg: >-
+          This playbook supports macOS or Debian/RedHat-family Linux on arm64/x86_64
+          with bash, fish, or zsh.
+
+    - name: Locate Homebrew on macOS
+      ansible.builtin.stat:
+        path: >-
+          {{ '/opt/homebrew/bin/brew' if ansible_facts.architecture == 'arm64'
+          else '/usr/local/bin/brew' }}
+      register: homebrew_binary
+      when: ansible_facts.system == "Darwin"
+
+    - name: Require Homebrew on macOS
+      ansible.builtin.assert:
+        that: homebrew_binary.stat.exists
+        fail_msg: >-
+          Install Homebrew from https://brew.sh and rerun this playbook.
+      when: ansible_facts.system == "Darwin"
+
+  tasks:
+    - name: Create user tool directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      check_mode: false
+      loop:
+        - "{{ local_bin_dir }}"
+        - "{{ bootstrap_cache_dir }}"
+        - "{{ bun_install_dir }}"
+        - "{{ cargo_home }}"
+
+    - name: Install macOS packages with Homebrew
+      community.general.homebrew:
+        name: "{{ macos_packages }}"
+        state: present
+        update_homebrew: false
+      when: ansible_facts.system == "Darwin"
+
+    - name: Install Debian-family packages
+      ansible.builtin.apt:
+        name: "{{ debian_packages }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      become: true
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Install RedHat-family packages
+      ansible.builtin.dnf:
+        name: "{{ redhat_packages }}"
+        state: present
+      become: true
+      when: ansible_facts.os_family == "RedHat"
+
+    - name: Check for the Debian fd executable
+      ansible.builtin.stat:
+        path: /usr/bin/fdfind
+      register: debian_fd
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Expose fd under its canonical name on Debian
+      ansible.builtin.file:
+        src: /usr/bin/fdfind
+        dest: "{{ local_bin_dir }}/fd"
+        state: link
+      when:
+        - ansible_facts.os_family == "Debian"
+        - debian_fd.stat.exists
+
+    - name: Check for the Debian bat executable
+      ansible.builtin.stat:
+        path: /usr/bin/batcat
+      register: debian_bat
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Expose bat under its canonical name on Debian
+      ansible.builtin.file:
+        src: /usr/bin/batcat
+        dest: "{{ local_bin_dir }}/bat"
+        state: link
+      when:
+        - ansible_facts.os_family == "Debian"
+        - debian_bat.stat.exists
+
+    - name: Install the pinned yq binary
+      ansible.builtin.get_url:
+        url: >-
+          {{ yq_release_base_url }}/v{{ yq_version }}/{{
+          yq_releases[ansible_facts.system][ansible_facts.architecture].asset }}
+        dest: "{{ local_bin_dir }}/yq"
+        checksum: >-
+          sha256:{{ yq_releases[ansible_facts.system][ansible_facts.architecture].sha256 }}
+        mode: "0755"
+
+    - name: Read the installed Bun version
+      ansible.builtin.command:
+        argv:
+          - "{{ bun_install_dir }}/bin/bun"
+          - --version
+      register: installed_bun
+      changed_when: false
+      failed_when: false
+
+    - name: Download the Bun installer
+      ansible.builtin.get_url:
+        url: https://bun.sh/install
+        dest: "{{ bootstrap_cache_dir }}/install-bun.sh"
+        mode: "0755"
+      when: installed_bun.rc != 0 or installed_bun.stdout | trim != bun_version
+
+    - name: Install the pinned Bun version
+      ansible.builtin.command:
+        argv:
+          - /bin/bash
+          - "{{ bootstrap_cache_dir }}/install-bun.sh"
+          - "bun-v{{ bun_version }}"
+      environment:
+        BUN_INSTALL: "{{ bun_install_dir }}"
+        SHELL: /bin/false
+      changed_when: true
+      when: installed_bun.rc != 0 or installed_bun.stdout | trim != bun_version
+
+    - name: Read the installed uv version
+      ansible.builtin.command:
+        argv:
+          - "{{ local_bin_dir }}/uv"
+          - --version
+      register: installed_uv
+      changed_when: false
+      failed_when: false
+
+    - name: Download the pinned uv installer
+      ansible.builtin.get_url:
+        url: "https://astral.sh/uv/{{ uv_version }}/install.sh"
+        dest: "{{ bootstrap_cache_dir }}/install-uv.sh"
+        mode: "0755"
+      when: installed_uv.rc != 0 or uv_version not in installed_uv.stdout
+
+    - name: Install the pinned uv version
+      ansible.builtin.command:
+        argv:
+          - /bin/sh
+          - "{{ bootstrap_cache_dir }}/install-uv.sh"
+      environment:
+        UV_INSTALL_DIR: "{{ local_bin_dir }}"
+        UV_NO_MODIFY_PATH: "1"
+      changed_when: true
+      when: installed_uv.rc != 0 or uv_version not in installed_uv.stdout
+
+    - name: Check for rustup
+      ansible.builtin.stat:
+        path: "{{ cargo_home }}/bin/rustup"
+      register: rustup_binary
+
+    - name: Download the rustup installer
+      ansible.builtin.get_url:
+        url: https://sh.rustup.rs
+        dest: "{{ bootstrap_cache_dir }}/rustup-init.sh"
+        mode: "0755"
+      when: not rustup_binary.stat.exists
+
+    - name: Install rustup and the stable Rust toolchain
+      ansible.builtin.command:
+        argv:
+          - /bin/sh
+          - "{{ bootstrap_cache_dir }}/rustup-init.sh"
+          - -y
+          - --profile
+          - minimal
+          - --default-toolchain
+          - stable
+          - --no-modify-path
+      changed_when: true
+      when: not rustup_binary.stat.exists
+
+    - name: Ensure the stable Rust toolchain is installed
+      ansible.builtin.command:
+        argv:
+          - "{{ cargo_home }}/bin/rustup"
+          - toolchain
+          - install
+          - stable
+          - --profile
+          - minimal
+      register: rust_toolchain_install
+      changed_when: >-
+        'unchanged' not in (rust_toolchain_install.stdout + rust_toolchain_install.stderr)
+
+    - name: Ensure rustfmt and Clippy are installed
+      ansible.builtin.command:
+        argv:
+          - "{{ cargo_home }}/bin/rustup"
+          - component
+          - add
+          - rustfmt
+          - clippy
+          - --toolchain
+          - stable
+      register: rust_components
+      changed_when: >-
+        'up to date' not in (rust_components.stdout + rust_components.stderr)
+
+    - name: Read the installed OpenCode version
+      ansible.builtin.command:
+        argv:
+          - "{{ bun_install_dir }}/bin/opencode"
+          - --version
+      register: installed_opencode
+      changed_when: false
+      failed_when: false
+
+    - name: Install the pinned OpenCode CLI
+      ansible.builtin.command:
+        argv:
+          - "{{ bun_install_dir }}/bin/bun"
+          - install
+          - --global
+          - "opencode-ai@{{ opencode_version }}"
+      changed_when: true
+      when: >-
+        installed_opencode.rc != 0 or
+        installed_opencode.stdout | trim != opencode_version
+
+    - name: Read the installed codebase-memory-mcp version
+      ansible.builtin.command:
+        argv:
+          - "{{ bun_install_dir }}/bin/codebase-memory-mcp"
+          - --version
+      register: installed_codebase_memory
+      changed_when: false
+      failed_when: false
+
+    - name: Install the pinned codebase-memory-mcp CLI
+      ansible.builtin.command:
+        argv:
+          - "{{ bun_install_dir }}/bin/bun"
+          - install
+          - --global
+          - "codebase-memory-mcp@{{ codebase_memory_version }}"
+      changed_when: true
+      when: >-
+        installed_codebase_memory.rc != 0 or
+        codebase_memory_version not in installed_codebase_memory.stdout
+
+    - name: Install pinned Rust MCP CLIs
+      ansible.builtin.command:
+        argv:
+          - "{{ cargo_home }}/bin/cargo"
+          - install
+          - --locked
+          - --version
+          - "{{ item.version }}"
+          - "{{ item.name }}"
+        creates: "{{ cargo_home }}/bin/{{ item.executable }}"
+      loop: "{{ cargo_tools }}"
+      loop_control:
+        label: "{{ item.name }} {{ item.version }}"
+
+    - name: Install ansible-lint in an isolated uv environment
+      ansible.builtin.command:
+        argv:
+          - "{{ local_bin_dir }}/uv"
+          - tool
+          - install
+          - "ansible-lint=={{ ansible_lint_version }}"
+        creates: "{{ local_bin_dir }}/ansible-lint"
+
+    - name: Create the Fish configuration directory
+      ansible.builtin.file:
+        path: "{{ shell_profiles.fish | dirname }}"
+        state: directory
+        mode: "0755"
+      check_mode: false
+      when: shell_name == "fish"
+
+    - name: Add tool directories to the Bash or Zsh profile
+      ansible.builtin.blockinfile:
+        path: "{{ shell_profiles[shell_name] }}"
+        create: true
+        mode: "0644"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: opencode toolchain"
+        block: |
+          export BUN_INSTALL="$HOME/.bun"
+          export CARGO_HOME="$HOME/.cargo"
+          export PATH="$HOME/.local/bin:$CARGO_HOME/bin:$BUN_INSTALL/bin:$PATH"
+      when: shell_name in ["bash", "zsh"]
+
+    - name: Add tool directories to the Fish profile
+      ansible.builtin.blockinfile:
+        path: "{{ shell_profiles.fish }}"
+        create: true
+        mode: "0644"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: opencode toolchain"
+        block: |
+          set -gx BUN_INSTALL "$HOME/.bun"
+          set -gx CARGO_HOME "$HOME/.cargo"
+          fish_add_path --prepend "$HOME/.local/bin" "$CARGO_HOME/bin" "$BUN_INSTALL/bin"
+      when: shell_name == "fish"
+
+    - name: Report the completed setup
+      ansible.builtin.debug:
+        msg: >-
+          Workstation tools are installed. Start a new shell, then run
+          'bun install --frozen-lockfile' and 'bun run check' from the repository.

@@ -1,0 +1,46 @@
+{
+  "name": "@nguyenthdat/opencode-starter",
+  "private": true,
+  "description": "Opinionated OpenCode configuration with reusable agents, document skills, MCP integrations, custom tooling, and cross-platform workstation bootstrap.",
+  "license": "MIT",
+  "author": "Jason Nguyen",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nguyenthdat/opencode-starter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nguyenthdat/opencode-starter/issues"
+  },
+  "homepage": "https://github.com/nguyenthdat/opencode-starter#readme",
+  "keywords": [
+    "opencode",
+    "opencode-config",
+    "ai-agents",
+    "agent-skills",
+    "model-context-protocol",
+    "mcp",
+    "developer-tools",
+    "developer-experience",
+    "dotfiles",
+    "automation",
+    "github-actions",
+    "bun",
+    "typescript",
+    "ansible"
+  ],
+  "type": "module",
+  "packageManager": "bun@1.3.14",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.4",
+    "jsonc-parser": "^3.3.1",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "^7"
+  }
+}
