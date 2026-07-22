@@ -8,10 +8,10 @@ description: "Builds a harness: designs a subagent fleet for a domain/project, d
 A meta-skill that builds a harness fit for a domain/project: it defines the role of each subagent, and generates the skills those subagents use.
 
 **Core principles:**
-1. Generate agent definitions (`.opencode/agent/`) and skills (`.opencode/skills/`).
+1. Generate agent definitions (`.opencode/agents/`) and skills (`.opencode/skills/`).
 2. **Use an orchestrator-dispatched subagent fleet as the default execution model.** OpenCode has no peer-to-peer messaging between subagents (no equivalent of a shared task board with direct agent-to-agent chat) — the primary agent (the orchestrator) is always the one dispatching work via the `task` tool and relaying results between subagents.
-3. **Register a harness pointer in `AGENTS.md`.** Keep only the minimum needed — trigger rule + changelog — so the orchestrator skill gets triggered again in a new session.
-4. **A harness is a living system, not a fixed artifact.** After every run, incorporate feedback and keep updating agents, skills, and `AGENTS.md`.
+3. **Register a harness pointer in `AGENTS.md`.** Keep only the minimum needed — goal, trigger rule, and the path to the team's changelog — so the orchestrator skill gets triggered again in a new session.
+4. **A harness is a living system, not a fixed artifact.** After every run, incorporate feedback and keep updating agents, skills, and the dedicated `changelog/{team-name}/CHANGELOG.md`.
 
 ## Workflow
 
@@ -19,7 +19,7 @@ A meta-skill that builds a harness fit for a domain/project: it defines the role
 
 The moment this skill triggers, check the current state of the harness first.
 
-1. Read `project/.opencode/agent/`, `project/.opencode/skills/`, and `project/AGENTS.md` (fall back to `CLAUDE.md` if that's what the project already uses).
+1. Read `project/.opencode/agents/`, `project/.opencode/skills/`, and `project/AGENTS.md` (fall back to `CLAUDE.md` if that's what the project already uses). Follow the harness pointer to `project/changelog/{team-name}/CHANGELOG.md` when it exists.
 2. Branch the execution mode based on what you find:
    - **New build**: the agent/skill directories are missing or empty → run all phases starting from Phase 1.
    - **Extend existing**: a harness already exists and the user wants new agents/skills added → run only the phases required, per the selection matrix below.
@@ -31,7 +31,7 @@ The moment this skill triggers, check the current state of the harness first.
    | Add an agent | Skip (reuse Phase 0 results) | Placement decision only | Required (incl. 3-0) | Only if a dedicated skill is needed (incl. 4-0) | Update orchestrator | Required |
    | Add/modify a skill | Skip | Skip | Skip | Required (incl. 4-0) | Only if wiring changes | Required |
    | Architecture change | Skip | Required | Only affected agents (incl. 3-0) | Only affected skills (incl. 4-0) | Required | Required |
-3. Cross-check the existing agent/skill list against what `AGENTS.md` records, and detect drift.
+3. Cross-check the existing agent/skill list against the orchestrator's fleet composition, then verify that the `AGENTS.md` pointer and team changelog path agree. Detect missing files and drift.
 4. Summarize the audit for the user and confirm the execution plan before proceeding.
 
 ### Phase 1: Domain analysis
@@ -51,7 +51,7 @@ This has one practical consequence for every pattern below: anything that in a p
 
 | Capability | OpenCode mechanism |
 |------|----------|
-| Dispatch a subagent | `task` tool, targeting a `mode: subagent` agent defined in `.opencode/agent/` (or a built-in: `general`, `explore`, `scout`) |
+| Dispatch a subagent | `task` tool, targeting a `mode: subagent` agent defined in `.opencode/agents/` (or a built-in: `general`, `explore`, `scout`) |
 | Run several subagents in parallel | Multiple `task` calls issued in the same turn |
 | Pass data between subagents | File-based (`_workspace/`) or return-value-based (task tool result goes to the orchestrator only) |
 | Let a subagent delegate further | Subagent invokes `task` itself, if its own permissions allow it (`permission.task`) — keep nesting to at most 2 levels; deeper delegation adds latency and loses context fast |
@@ -80,11 +80,11 @@ Judge along four axes: specialization, parallelizability, context load, reusabil
 
 #### 3-0. Check for overlap with existing agents
 
-Before creating a new agent, check it against the existing agents in `project/.opencode/agent/`. Building harnesses repeatedly tends to accumulate agents with overlapping responsibilities under different names.
+Before creating a new agent, check it against the existing agents in `project/.opencode/agents/`. Building harnesses repeatedly tends to accumulate agents with overlapping responsibilities under different names.
 
 > Classification criteria and reuse design: "Agent reuse design" in `references/agent-design-patterns.md`.
 
-**Every agent must be defined as a `project/.opencode/agent/{name}.md` file.** Putting a role directly into a `task` tool prompt without a backing agent file is not allowed. Why:
+**Every agent must be defined as a `project/.opencode/agents/{name}.md` file.** Putting a role directly into a `task` tool prompt without a backing agent file is not allowed. Why:
 - An agent only survives to the next session if it exists as a file.
 - Dispatch protocol (inputs/outputs, error handling) needs to be written down for hand-offs to work reliably.
 - The harness's core value is separating the agent (who) from the skill (how).
@@ -95,7 +95,7 @@ Even when reusing a built-in subagent (`general`, `explore`, `scout`), still cre
 
 **No fleet reconfiguration needed:** because OpenCode subagents don't hold a session-spanning "team" state, there's nothing to tear down between phases — the orchestrator simply calls a different set of subagents in the next phase. Don't port over Claude Code's "tear down the team, create a new one" ceremony; it doesn't apply here.
 
-Define each agent in `project/.opencode/agent/{name}.md`. Required sections in the body (the body itself is the agent's system prompt): core role, working principles, input/output protocol, error handling, collaboration. Add a **`## Hand-off protocol`** section describing what the orchestrator will feed this agent (and from which prior agent's output) and what file/return-value shape it must produce for the orchestrator to relay onward.
+Define each agent in `project/.opencode/agents/{name}.md`. Required sections in the body (the body itself is the agent's system prompt): core role, working principles, input/output protocol, error handling, collaboration. Add a **`## Hand-off protocol`** section describing what the orchestrator will feed this agent (and from which prior agent's output) and what file/return-value shape it must produce for the orchestrator to relay onward.
 
 > Definition template and full worked examples: "Agent definition structure" in `references/agent-design-patterns.md` + `references/orchestration-examples.md`.
 
@@ -234,26 +234,37 @@ Include an error-handling policy in the orchestrator. Core principle: retry once
 
 > More parallel subagents means more relaying work for the orchestrator between rounds. Three focused subagents beat five that need constant hand-holding.
 
-#### 5-4. Register the harness pointer in AGENTS.md
+#### 5-4. Register the harness pointer and team changelog
 
-Once the harness is set up, register a minimal pointer in the project's `AGENTS.md` (use `CLAUDE.md` instead only if the project is intentionally kept Claude Code-compatible and already relies on that file). `AGENTS.md` loads on every session, so recording just the harness's existence and trigger rule lets the orchestrator skill handle the rest.
+Once the harness is set up, register a minimal pointer in the project's `AGENTS.md` (use `CLAUDE.md` instead only if the project is intentionally kept Claude Code-compatible and already relies on that file). `AGENTS.md` loads on every session, so recording the harness's existence, trigger rule, and changelog path lets the orchestrator skill handle the rest without loading historical entries into every session.
+
+Store each team's history at `changelog/{team-name}/CHANGELOG.md`. Use a stable lowercase-hyphen slug for `{team-name}`, normally derived from the fleet or domain name. Different teams must use different subdirectories so their histories remain independent.
 
 **AGENTS.md template:**
 
 ````markdown
-## Harness: {domain name}
+## {domain name}
 
 **Goal:** {one line: the harness's core objective}
 
 **Trigger:** Use the `{orchestrator-skill-name}` skill for {domain}-related requests. Simple questions can be answered directly.
 
-**Changelog:**
+**Changelog:** `changelog/{team-name}/CHANGELOG.md`
+````
+
+**Team changelog template (`changelog/{team-name}/CHANGELOG.md`):**
+
+````markdown
+# {Team Name} Changelog
+
 | Date | Change | Target | Reason |
 |------|----------|------|------|
 | {YYYY-MM-DD} | Initial setup | All | - |
 ````
 
-**What NOT to put in AGENTS.md:** the agent list, the skill list, directory structure, detailed execution rules. Why: the agent/skill list is already managed by the orchestrator skill and by `.opencode/agent/`, `.opencode/skills/` themselves — duplicating it invites drift. Directory structure is directly inspectable from the filesystem. `AGENTS.md` holds only **the pointer (trigger rule) + changelog**.
+**What NOT to put in AGENTS.md:** changelog entries, the agent list, the skill list, directory structure, or detailed execution rules. Why: historical entries waste always-loaded context, while the agent/skill list is already managed by the orchestrator skill and by `.opencode/agents/`, `.opencode/skills/` themselves. `AGENTS.md` holds only **the harness pointer and the changelog file path**.
+
+**Migrating an existing inline changelog:** move every existing row from the `AGENTS.md` changelog table into `changelog/{team-name}/CHANGELOG.md` without rewriting dates or content, then replace the inline table with the single path pointer shown above.
 
 #### 5-5. Supporting follow-up work
 
@@ -362,18 +373,19 @@ Different feedback types point at different things to modify:
 
 #### 7-3. Changelog
 
-Record every change in `AGENTS.md`'s **Changelog** table (same table as the Phase 5-4 template's "Changelog" section):
+Record every harness change in the team's dedicated changelog referenced by `AGENTS.md`, never as an inline table in `AGENTS.md`. For example, `changelog/content-team/CHANGELOG.md`:
 
 ```markdown
-**Changelog:**
+# Content Team Harness Changelog
+
 | Date | Change | Target | Reason |
 |------|----------|------|------|
 | 2026-04-05 | Initial setup | All | - |
-| 2026-04-07 | Added QA agent | agent/qa.md | Feedback: output quality not verified enough |
-| 2026-04-10 | Added tone guide | skills/content-creator | Feedback: "too stiff" |
+| 2026-04-07 | Added QA agent | .opencode/agents/qa.md | Feedback: output quality not verified enough |
+| 2026-04-10 | Added tone guide | .opencode/skills/content-creator | Feedback: "too stiff" |
 ```
 
-This changelog lets you track how the harness has evolved and catch regressions.
+This per-team changelog tracks how each harness has evolved without making every historical entry part of the always-loaded project instructions.
 
 #### 7-4. Evolution triggers
 
@@ -387,7 +399,7 @@ Propose evolving the harness not only when the user explicitly says "update the 
 Systematically audit, fix, and sync an existing harness. Follow this when Phase 0 routes you into the "operate/maintain" branch.
 
 **Step 1: Status audit**
-- Compare the file list in `.opencode/agent/` against the agent composition described in the orchestrator skill → produce a list of mismatches.
+- Compare the file list in `.opencode/agents/` against the agent composition described in the orchestrator skill → produce a list of mismatches.
 - Compare the `.opencode/skills/` directory listing against the orchestrator's skill composition → produce a list of mismatches.
 - Report the audit to the user.
 
@@ -395,20 +407,22 @@ Systematically audit, fix, and sync an existing harness. Follow this when Phase 
 - Add/modify/delete agents and skills per the user's request.
 - One change at a time; run Step 3 (sync) immediately after each change.
 
-**Step 3: Update the AGENTS.md changelog**
-- Record date, change, target, and reason in the changelog table.
+**Step 3: Update the team changelog**
+- Resolve the changelog path from the team's `AGENTS.md` pointer.
+- Record date, change, target, and reason in `changelog/{team-name}/CHANGELOG.md`.
+- If the harness still has a legacy inline changelog, migrate it using Phase 5-4 before appending the new entry.
 
 **Step 4: Verify the change**
 - Structural verification of the modified agent/skill (per Phase 6-1 criteria).
 - If the change affects triggering, run trigger verification (per Phase 6-4 criteria).
 - For large changes (architecture change, 3+ agents added/removed), also run Phase 6-3 (execution test) and 6-5 (dry-run).
-- Final check that `AGENTS.md` matches the actual files on disk.
+- Final check that the `AGENTS.md` pointer, team changelog, orchestrator composition, and actual files on disk agree.
 
 ## Deliverable checklist
 
 Confirm after generation:
 
-- [ ] `project/.opencode/agent/` — **agent definition files created** (including for built-in-backed roles)
+- [ ] `project/.opencode/agents/` — **agent definition files created** (including for built-in-backed roles)
 - [ ] `project/.opencode/skills/` — skill files (`SKILL.md` + `references/`), frontmatter valid (name matches directory, lowercase-hyphen, description ≤1024 chars)
 - [ ] One orchestrator skill (includes data flow + error handling + test scenarios)
 - [ ] Dispatch topology stated (which architecture pattern(s) from Phase 2-2, and the relay points between subagent calls)
@@ -421,8 +435,9 @@ Confirm after generation:
 - [ ] SKILL.md bodies under 500 lines, split into `references/` if they exceed it
 - [ ] Execution verified with 2–3 test prompts
 - [ ] Trigger verification (should-trigger + should-NOT-trigger) completed
-- [ ] **Harness pointer registered in `AGENTS.md`** (trigger rule + changelog)
-- [ ] **Agent/skill additions/removals/edits recorded in the `AGENTS.md` changelog**
+- [ ] **Harness pointer registered in `AGENTS.md`** (goal + trigger rule + team changelog path)
+- [ ] **Dedicated `changelog/{team-name}/CHANGELOG.md` created for each team**
+- [ ] **Agent/skill additions/removals/edits recorded in the relevant team's changelog, not inline in `AGENTS.md`**
 - [ ] **Orchestrator Phase 1 has a context-check step** (initial vs. follow-up vs. partial re-run)
 
 ## References

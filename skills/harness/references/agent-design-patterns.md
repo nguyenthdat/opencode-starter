@@ -17,7 +17,7 @@ The primary agent (the orchestrator) dispatches subagents through the `task` too
 ```
 
 **Core tool:**
-- `task({ description, prompt, subagent_type })` (or the `@agent-name` mention in the OpenCode TUI, for a user-triggered dispatch) — invokes a subagent defined in `.opencode/agent/` or a built-in (`general`, `explore`, `scout`).
+- `task({ description, prompt, subagent_type })` (or the `@agent-name` mention in the OpenCode TUI, for a user-triggered dispatch) — invokes a subagent defined in `.opencode/agents/` or a built-in (`general`, `explore`, `scout`).
 
 **Characteristics:**
 - Fast, lightweight, token-efficient — results summarize back into the orchestrator's context.
@@ -163,20 +163,20 @@ Note: unlike Claude Code's built-in `Plan` type, OpenCode's `plan` is a **primar
 
 ### Custom types
 
-Define an agent at `.opencode/agent/{name}.md` and dispatch it with `subagent_type: "{name}"`. Custom agents get whatever tool access their `permission` config grants — up to full access.
+Define an agent at `.opencode/agents/{name}.md` and dispatch it with `subagent_type: "{name}"`. Custom agents get whatever tool access their `permission` config grants — up to full access.
 
 ### Selection guide
 
 | Situation | Recommended | Why |
 |------|------|------|
-| Complex role, reused across sessions | **Custom agent** (`.opencode/agent/`) | Persona and working principles live in a file |
+| Complex role, reused across sessions | **Custom agent** (`.opencode/agents/`) | Persona and working principles live in a file |
 | Simple one-off research/collection, a prompt is enough | **`general`** + a detailed prompt | No agent file needed; instructions live in the prompt |
 | Read-only code inspection (analysis/review) | **`explore`** | Prevents accidental file edits |
 | External dependency/docs research | **`scout`** | Purpose-built for that; avoids polluting the main workspace |
 | Read-only planning/design delegated to a subagent | **Custom agent** with `permission: { edit: deny, bash: deny }` | `plan` itself can't be dispatched as a subagent |
 | Implementation work requiring file edits | **Custom agent** | Full tool access + specialized instructions |
 
-**Principle:** define every agent as a `.opencode/agent/{name}.md` file, even when it's a thin wrapper around a built-in type — the role, principles, and hand-off protocol need to exist as a file to be reusable in the next session and to keep dispatch quality consistent.
+**Principle:** define every agent as a `.opencode/agents/{name}.md` file, even when it's a thin wrapper around a built-in type — the role, principles, and hand-off protocol need to exist as a file to be reusable in the next session and to keep dispatch quality consistent.
 
 **Model:** give every custom agent an explicit `model` field. Use the strongest reasoning model your provider offers for quality-critical roles; a faster/cheaper model is fine for mechanical, low-stakes roles. Don't leave it unset by default — subagents otherwise silently inherit the primary agent's model.
 
@@ -250,7 +250,7 @@ Before creating a new agent, check it against existing ones. Building harnesses 
 | Aspect | Skill | Agent |
 |------|-------------|-----------------|
 | Definition | Procedural knowledge + tool bundle | Expert persona + behavioral principles |
-| Location | `.opencode/skills/` | `.opencode/agent/` |
+| Location | `.opencode/skills/` | `.opencode/agents/` |
 | Trigger | Matches a user request's keywords, or loaded via the `skill` tool | Explicitly dispatched via the `task` tool (or `@mention`) |
 | Size | Small to large (a full workflow) | Small (a role definition) |
 | Purpose | "How it's done" | "Who does it" |

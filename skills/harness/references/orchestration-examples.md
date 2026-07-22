@@ -28,7 +28,7 @@ Five worked examples, each showing the orchestrator + `task`-tool dispatch patte
 | background-researcher | `general` | Background/competitive/academic context | research_background.md |
 | (orchestrator) | — | Synthesized report | final_report.md |
 
-> Each researcher uses the `general` built-in subagent, but is still defined as a `.opencode/agent/{name}.md` file specifying its role and research scope, so the definition is reusable across sessions.
+> Each researcher uses the `general` built-in subagent, but is still defined as a `.opencode/agents/{name}.md` file specifying its role and research scope, so the definition is reusable across sessions.
 
 ### Orchestrator workflow
 
@@ -324,7 +324,7 @@ Difference from fan-out: fan-out fixes the split up front; a supervisor adjusts 
 ## Deliverable pattern summary
 
 ### Agent definition files
-Location: `project/.opencode/agent/{agent-name}.md`
+Location: `project/.opencode/agents/{agent-name}.md`
 Required sections: core role, working principles, input/output protocol, error handling, collaboration.
 Additional required section: **Hand-off protocol** (what it receives from upstream, what it produces for downstream — since there's no direct messaging, this has to be explicit).
 
