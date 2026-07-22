@@ -7,12 +7,12 @@
     "openai": { "options": { "headerTimeout": 99999, "timeout": 999999, "chunkTimeout": 99999 } },
   },
   "instructions": [
+    "AGENTS.md",
     "~/.config/opencode/instructions/*",
     "~/.config/opencode/AGENTS.md",
     "~/.opencode/instructions/*",
     "~/.opencode/AGENTS.md",
     ".opencode/instructions/*",
-    ".opencode/AGENTS.md",
   ],
   "permission": {
     "edit": "allow",
@@ -69,8 +69,8 @@
   "compaction": { "auto": true, "prune": true, "reserved": 20000 },
   "experimental": { "continue_loop_on_deny": false, "mcp_timeout": 30000 },
   "plugin": [
-    "github:nguyenthdat/opencode-anthropic-auth",
-    "github:nguyenthdat/opencode-xberg",
+    "@ex-machina/opencode-anthropic-auth",
+    "@nguyenthdat/opencode-xberg",
     "github:nguyenthdat/opencode-crawlberg",
     "github:nguyenthdat/opencode-html-to-markdown",
     "github:nguyenthdat/opencode-tree-sitter-language-pack",
