@@ -70,10 +70,10 @@
   "experimental": { "continue_loop_on_deny": false, "mcp_timeout": 30000 },
   "plugin": [
     "@ex-machina/opencode-anthropic-auth",
-    "@nguyenthdat/opencode-xberg",
-    "github:nguyenthdat/opencode-crawlberg",
-    "github:nguyenthdat/opencode-html-to-markdown",
-    "github:nguyenthdat/opencode-tree-sitter-language-pack",
+    "@xberg-io/opencode-xberg",
+    "@xberg-io/opencode-crawlberg",
+    "@xberg-io/opencode-html-to-markdown",
+    "@xberg-io/opencode-tree-sitter-language-pack",
   ],
   "lsp": true,
   "mcp": {
