@@ -85,7 +85,6 @@
     "@xberg-io/opencode-html-to-markdown",
     "@xberg-io/opencode-tree-sitter-language-pack",
     "@nguyenthdat/opencode-multi-auth-codex@1.5.7",
-    // "@guard22/opencode-multi-auth-codex@latest",
   ],
   "lsp": true,
   "mcp": {
