@@ -79,10 +79,22 @@
     "@xberg-io/opencode-crawlberg",
     "@xberg-io/opencode-html-to-markdown",
     "@xberg-io/opencode-tree-sitter-language-pack",
+    "@nguyenthdat/opencode-multi-auth-codex@1.5.5",
+    // "@guard22/opencode-multi-auth-codex@latest",
   ],
   "lsp": true,
   "mcp": {
     // @mcp-group core | Core MCP services
+    "qdrant": {
+      "type": "local",
+      "enabled": true,
+      "command": ["{env:HOME}/.config/opencode/scripts/run-qdrant-mcp.sh"],
+      "environment": {
+        "QDRANT_LOCAL_PATH": ".qdrant",
+        "EMBEDDING_MODEL": "intfloat/multilingual-e5-large",
+      },
+      "timeout": 120000,
+    },
     "codebase-memory": { "enabled": true, "type": "local", "command": ["codebase-memory-mcp"] },
     "git": { "enabled": true, "type": "local", "command": ["uvx", "mcp-server-git"] },
     "github": {

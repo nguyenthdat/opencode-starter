@@ -4,6 +4,7 @@
   "workspaces": {
     "": {
       "dependencies": {
+        "@guard22/opencode-multi-auth-codex": "^1.4.3",
         "@opencode-ai/plugin": "1.18.4",
         "jsonc-parser": "^3.3.1",
         "yaml": "^2.9.0",
@@ -17,6 +18,8 @@
   },
   "packages": {
     "@ai-sdk/provider": ["@ai-sdk/provider@3.0.8", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-oGMAgGoQdBXbZqNG0Ze56CHjDZ1IDYOwGYxYjO5KLSlz5HiNQ9udIXsPZ61VWaHGZ5XW/jyjmr6t2xz2jGVwbQ=="],
+
+    "@guard22/opencode-multi-auth-codex": ["@guard22/opencode-multi-auth-codex@1.4.3", "", { "peerDependencies": { "@opencode-ai/plugin": "^1.0.150" }, "optionalPeers": ["@opencode-ai/plugin"], "bin": { "opencode-multi-auth": "dist/cli.js" } }, "sha512-plS3KRQSf3+TMroykXTZl8E9u0Cx6do1kXy5iVxY9vEEVso/DA3C/7JN93xykb2c7WU+VkovbVfMG4D3C4DKdw=="],
 
     "@msgpackr-extract/msgpackr-extract-darwin-arm64": ["@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ=="],
 
