@@ -61,7 +61,12 @@
       },
     },
     "build": { "permission": { "doom_loop": "deny", "task": { "*": "allow", "build": "deny" } } },
-    "general": { "permission": { "task": "deny", "doom_loop": "deny" } },
+    "general": {
+      "permission": {
+        "task": { "*": "deny", "explore": "allow", "search": "allow" },
+        "doom_loop": "deny",
+      },
+    },
     "title": { "model": "opencode/deepseek-v4-flash-free", "variant": "none" },
     "compaction": {
       "model": "anthropic/claude-sonnet-5",
