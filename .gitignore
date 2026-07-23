@@ -323,3 +323,4 @@ _workspace/
 .opencode/
 .ansible/
 .cache_ggshield
+opencode-multi-auth-codex-accounts*

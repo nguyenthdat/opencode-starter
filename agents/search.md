@@ -1,7 +1,6 @@
 ---
 description: Search subagent for collecting, validating, and summarizing information from external sources. Use when the user asks to search the web, look up technical docs, find code on GitHub, research a topic, scrape pages, or gather any external information. Priority tools are Crawlberg, Exa, CloakBrowser, Xberg, HTML-to-Markdown, WebFetch, and GitHub MCP.
 mode: subagent
-step: 20
 permission:
   edit: deny
   bash: deny
