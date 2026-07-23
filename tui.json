@@ -1,5 +1,8 @@
 {
   "$schema": "https://opencode.ai/tui.json",
   "theme": "jetbrains-islands-dark",
-  "plugin": ["@nguyenthdat/opencode-multi-auth-codex@1.5.7", "@nguyenthdat/opencode-manager@0.2.0"]
+  "plugin": [
+    "@nguyenthdat/opencode-multi-auth-codex@1.5.7",
+    "@nguyenthdat/opencode-manager@0.3.0"
+  ]
 }

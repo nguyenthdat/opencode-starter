@@ -31,6 +31,7 @@
   "type": "module",
   "packageManager": "bun@1.3.14",
   "scripts": {
+    "prepare": "husky",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
@@ -42,6 +43,13 @@
   },
   "devDependencies": {
     "@types/bun": "1.3.14",
+    "husky": "9.1.7",
+    "lint-staged": "^17.2.0",
+    "prettier": "^3.9.6",
     "typescript": "^7"
+  },
+  "lint-staged": {
+    "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json,jsonc,css,scss,html,md,yaml,yml}": "prettier --write",
+    "*.py": "uvx --from ruff==0.11.13 ruff format"
   }
 }
