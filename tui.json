@@ -3,6 +3,6 @@
   "theme": "jetbrains-islands-dark",
   "plugin": [
     "@nguyenthdat/opencode-multi-auth-codex@1.5.8",
-    "@nguyenthdat/opencode-manager@0.3.0"
+    "@nguyenthdat/opencode-manager@0.3.1"
   ]
 }

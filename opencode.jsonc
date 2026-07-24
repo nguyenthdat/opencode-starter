@@ -99,7 +99,7 @@
     "@xberg-io/opencode-html-to-markdown",
     "@xberg-io/opencode-tree-sitter-language-pack",
     "@nguyenthdat/opencode-multi-auth-codex@1.5.8",
-    "@nguyenthdat/opencode-memory@0.3.2",
+    "@nguyenthdat/opencode-memory@0.3.3",
   ],
   "lsp": true,
   "mcp": {
