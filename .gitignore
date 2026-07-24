@@ -320,7 +320,8 @@ qdrant_data/
 manifest-allowbackup-snapshot.md
 application-element-snapshot.md
 _workspace/
-.opencode/
+.opencode/*
+!.opencode/memory/
 .ansible/
 .cache_ggshield
 opencode-multi-auth-codex-accounts*
