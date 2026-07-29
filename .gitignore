@@ -320,6 +320,7 @@ qdrant_data/
 manifest-allowbackup-snapshot.md
 application-element-snapshot.md
 _workspace/
+.graphiti/
 .opencode/*
 !.opencode/memory/
 .ansible/

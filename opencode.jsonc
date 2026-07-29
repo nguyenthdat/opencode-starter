@@ -99,7 +99,6 @@
     "@xberg-io/opencode-html-to-markdown",
     "@xberg-io/opencode-tree-sitter-language-pack",
     "@nguyenthdat/opencode-multi-auth-codex@1.5.8",
-    "@nguyenthdat/opencode-memory@0.4.2",
   ],
   "lsp": true,
   "mcp": {
@@ -113,6 +112,31 @@
       "enabled": true,
       "type": "local",
       "command": ["uvx", "mcp-server-git"],
+    },
+    "graphiti": {
+      // Enable after OPENAI_API_KEY and FalkorDB are available.
+      "enabled": false,
+      "type": "local",
+      "command": [
+        "uv",
+        "run",
+        "--isolated",
+        "--directory",
+        "{env:HOME}/.config/opencode/.graphiti/mcp_server",
+        "--project",
+        ".",
+        "main.py",
+        "--transport",
+        "stdio",
+        "--database-provider",
+        "falkordb",
+      ],
+      "environment": {
+        "FALKORDB_URI": "redis://localhost:6379",
+        "GRAPHITI_GROUP_ID": "opencode",
+        "GRAPHITI_TELEMETRY_ENABLED": "false",
+        "SEMAPHORE_LIMIT": "2",
+      },
     },
     "github": {
       "enabled": true,
