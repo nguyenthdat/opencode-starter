@@ -326,3 +326,8 @@ _workspace/
 .ansible/
 .cache_ggshield
 opencode-multi-auth-codex-accounts*
+.gitignore
+antigravity-accounts.json
+antigravity-accounts.json.*.tmp
+antigravity-signature-cache.json
+antigravity-logs/
