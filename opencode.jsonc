@@ -10,6 +10,11 @@
         "timeout": 999999,
         "chunkTimeout": 99999,
       },
+      "models": {
+        "gpt-5.6-sol": {
+          "limit": { "context": 530000, "input": 400000, "output": 130000 },
+        },
+      },
     },
   },
   "instructions": [
@@ -98,8 +103,8 @@
     "@xberg-io/opencode-crawlberg",
     "@xberg-io/opencode-html-to-markdown",
     "@xberg-io/opencode-tree-sitter-language-pack",
-    "@nguyenthdat/opencode-multi-auth-codex@latest",
-    "@nguyenthdat/opencode-antigravity-auth@latest",
+    "@nguyenthdat/opencode-multi-auth-codex@1.5.9",
+    "@nguyenthdat/opencode-antigravity-auth",
   ],
   "lsp": true,
   "mcp": {
@@ -107,7 +112,7 @@
     "basic-memory": {
       "enabled": true,
       "type": "local",
-      "command": ["uvx", "basic-memory", "mcp"],
+      "command": ["basic-memory", "mcp"],
     },
     "codebase-memory": {
       "enabled": true,
