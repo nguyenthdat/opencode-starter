@@ -85,7 +85,7 @@
     },
     "title": { "model": "opencode/deepseek-v4-flash-free", "variant": "none" },
     "compaction": {
-      "model": "anthropic/claude-fable-5",
+      "model": "anthropic/claude-sonnet-5",
       "variant": "max",
       "temperature": 0,
       "prompt": "{file:./prompts/compaction.txt}",
@@ -98,13 +98,13 @@
   "compaction": { "auto": true, "prune": true, "reserved": 20000 },
   "experimental": { "continue_loop_on_deny": false, "mcp_timeout": 30000 },
   "plugin": [
-    "@ex-machina/opencode-anthropic-auth",
-    "@xberg-io/opencode-xberg",
-    "@xberg-io/opencode-crawlberg",
-    "@xberg-io/opencode-html-to-markdown",
-    "@xberg-io/opencode-tree-sitter-language-pack",
+    "@ex-machina/opencode-anthropic-auth@1.8.1",
+    "@xberg-io/opencode-xberg@1.0.14",
+    "@xberg-io/opencode-crawlberg@1.1.3",
+    "@xberg-io/opencode-html-to-markdown@3.10.6",
+    "@xberg-io/opencode-tree-sitter-language-pack@1.14.3",
     "@nguyenthdat/opencode-multi-auth-codex@1.5.9",
-    "@nguyenthdat/opencode-antigravity-auth",
+    "@nguyenthdat/opencode-antigravity-auth@1.6.0",
   ],
   "lsp": true,
   "mcp": {
